@@ -1,0 +1,745 @@
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+}
+
+/* App Layout */
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.app-header h1 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+
+.tab-navigation {
+  display: flex;
+  gap: 1rem;
+}
+
+.tab-navigation button {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-navigation button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.tab-navigation button.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #667eea;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Component Sidebar */
+.component-sidebar {
+  width: 250px;
+  background: white;
+  border-right: 1px solid #e2e8f0;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.component-sidebar h3 {
+  margin-bottom: 1rem;
+  color: #1a202c;
+}
+
+.component-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.draggable-component {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.draggable-component:hover {
+  background: #edf2f7;
+  border-color: #cbd5e0;
+  transform: translateY(-1px);
+}
+
+.draggable-component.dragging {
+  cursor: grabbing;
+}
+
+.component-icon {
+  margin-right: 0.75rem;
+}
+
+.component-info {
+  flex: 1;
+}
+
+.component-label {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 0.9rem;
+}
+
+.component-description {
+  font-size: 0.8rem;
+  color: #718096;
+}
+
+/* Funnel Canvas */
+.funnel-canvas {
+  flex: 1;
+  position: relative;
+  background: #f7fafc;
+  overflow: hidden;
+}
+
+.funnel-canvas.drag-over {
+  background: #e6fffa;
+}
+
+.canvas-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.grid-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.canvas-instructions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.empty-state h3 {
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #718096;
+}
+
+/* Funnel Component */
+.funnel-component {
+  position: absolute;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  min-width: 200px;
+  cursor: move;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.2s;
+}
+
+.funnel-component:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.funnel-component.selected {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+.component-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.component-title {
+  flex: 1;
+  margin-left: 0.5rem;
+}
+
+.remove-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.component-body {
+  padding: 0.75rem;
+}
+
+.component-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #4a5568;
+}
+
+/* Right Panel */
+.right-panel {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+}
+
+/* Configuration Panel */
+.configuration-panel {
+  flex: 1;
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-y: auto;
+}
+
+.configuration-panel h3 {
+  margin-bottom: 1rem;
+  color: #1a202c;
+}
+
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section h4 {
+  margin-bottom: 0.5rem;
+  color: #2d3748;
+  font-size: 0.9rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+.empty-selection {
+  text-align: center;
+  color: #718096;
+  font-style: italic;
+  padding: 2rem;
+}
+
+/* Metrics Panel */
+.metrics-panel {
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.metrics-panel h3 {
+  margin-bottom: 1rem;
+  color: #1a202c;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.metric-icon {
+  margin-right: 0.5rem;
+}
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.metrics-summary h4 {
+  margin-bottom: 0.5rem;
+  color: #2d3748;
+  font-size: 0.9rem;
+}
+
+.summary-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #4a5568;
+}
+
+/* Scenario Manager */
+.scenario-manager {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.scenario-header {
+  margin-bottom: 2rem;
+}
+
+.scenario-header h2 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.scenario-header p {
+  color: #718096;
+}
+
+.save-section,
+.scenarios-section {
+  margin-bottom: 2rem;
+}
+
+.save-section h3,
+.scenarios-section h3 {
+  margin-bottom: 1rem;
+  color: #2d3748;
+}
+
+.save-form {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.save-form input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.save-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #3182ce;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #2c5282;
+}
+
+.save-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.current-scenario-info {
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.empty-scenarios {
+  text-align: center;
+  padding: 3rem;
+  color: #718096;
+}
+
+.scenarios-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.scenario-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.scenario-info {
+  flex: 1;
+  margin-bottom: 1rem;
+}
+
+.scenario-info h4 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.scenario-info p {
+  color: #718096;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.scenario-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #a0aec0;
+}
+
+.scenario-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.load-button,
+.export-button,
+.delete-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.load-button {
+  background: #48bb78;
+  color: white;
+}
+
+.export-button {
+  background: #ed8936;
+  color: white;
+}
+
+.delete-button {
+  background: #f56565;
+  color: white;
+}
+
+.clear-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Blueprints Panel */
+.blueprints-panel {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.blueprints-header {
+  margin-bottom: 2rem;
+}
+
+.blueprints-header h2 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.blueprints-header p {
+  color: #718096;
+}
+
+.blueprints-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.blueprint-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.blueprint-header {
+  margin-bottom: 1rem;
+}
+
+.blueprint-header h3 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.blueprint-meta .component-count {
+  background: #edf2f7;
+  color: #4a5568;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.blueprint-description {
+  margin-bottom: 1rem;
+  color: #718096;
+}
+
+.blueprint-components {
+  margin-bottom: 1rem;
+}
+
+.blueprint-components h4 {
+  font-size: 0.9rem;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.blueprint-components ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.component-type {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.component-budget {
+  color: #718096;
+  font-size: 0.8rem;
+}
+
+.blueprint-preview {
+  margin-bottom: 1rem;
+}
+
+.preview-canvas {
+  position: relative;
+  height: 100px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-component {
+  position: absolute;
+  width: 12px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.blueprint-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.load-blueprint-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  padding: 0.75rem;
+  background: #3182ce;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.load-blueprint-button:hover {
+  background: #2c5282;
+}
+
+.export-blueprint-button,
+.info-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.blueprint-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.blueprints-info {
+  margin-top: 2rem;
+}
+
+.info-card {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.info-card h3 {
+  color: #2f855a;
+  margin-bottom: 1rem;
+}
+
+.info-card ol {
+  color: #276749;
+  padding-left: 1.5rem;
+}
+
+.info-card li {
+  margin-bottom: 0.5rem;
+}
+
+/* Loading States */
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #718096;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app-main {
+    flex-direction: column;
+  }
+  
+  .component-sidebar {
+    width: 100%;
+    height: 200px;
+  }
+  
+  .right-panel {
+    width: 100%;
+    height: 300px;
+  }
+  
+  .blueprints-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .scenarios-list {
+    grid-template-columns: 1fr;
+  }
+}
