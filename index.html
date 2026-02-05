@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RestaurantEvent Pro 2.0 | AI-Powered Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        
+        .drag-item {
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+        
+        .drag-item:active {
+            cursor: grabbing;
+        }
+        
+        .drop-zone {
+            background-image: radial-gradient(circle, #334155 1px, transparent 1px);
+            background-size: 20px 20px;
+            min-height: 600px;
+            transition: all 0.3s ease;
+        }
+        
+        .drop-zone.drag-over {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+        }
+        
+        .canvas-item {
+            animation: dropIn 0.3s ease-out;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes dropIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        
+        .suggested-item {
+            animation: pulse-suggestion 2s infinite;
+            border: 2px dashed #f59e0b;
+        }
+        
+        @keyframes pulse-suggestion {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+        }
+        
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transform-origin: left center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .bundle-badge {
+            background: linear-gradient(135deg, #059669, #10b981);
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+        }
+        
+        .price-anchor {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+        
+        .decoy-highlight {
+            border: 2px solid #ec4899;
+            box-shadow: 0 0 20px rgba(236, 72, 153, 0.2);
+        }
+        
+        .funnel-connector {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(to bottom, #3b82f6, #10b981);
+            left: 50%;
+            top: 100%;
+            height: 30px;
+            transform: translateX(-50%);
+        }
+        
+        .scarcity-timer {
+            background: linear-gradient(90deg, #dc2626, #ef4444);
+            animation: urgency-pulse 1.5s infinite;
+        }
+        
+        @keyframes urgency-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .auto-save-indicator {
+            transition: all 0.3s ease;
+        }
+        
+        .auto-save-indicator.saved {
+            color: #10b981;
+        }
+        
+        .auto-save-indicator.saving {
+            color: #f59e0b;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .client-preview {
+            background: white;
+            color: #1f2937;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .tooltip.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-700 h-16 flex items-center justify-between px-6 shadow-lg z-50 relative">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <i class="fas fa-layer-group text-white"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-xl text-white">RestaurantEvent Pro <span class="text-xs bg-blue-600 px-2 py-0.5 rounded-full ml-2">2.0 AI</span></h1>
+                <p class="text-xs text-slate-400">Smart Builder & Funnel Analytics</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div class="auto-save-indicator saved flex items-center gap-2 text-xs mr-4" id="save-status">
+                <i class="fas fa-check-circle"></i>
+                <span>Salvato</span>
+            </div>
+            
+            <div class="bg-slate-800 rounded-lg p-1 flex gap-1">
+                <button onclick="switchMode('event')" id="btn-event" class="px-4 py-2 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow-lg">
+                    <i class="fas fa-calendar-alt mr-2"></i>Event Builder
+                </button>
+                <button onclick="switchMode('funnel')" id="btn-funnel" class="px-4 py-2 rounded-md text-sm font-medium transition-all text-slate-400 hover:text-white">
+                    <i class="fas fa-filter mr-2"></i>Sales Funnel
+                </button>
+            </div>
+            
+            <button onclick="togglePreview()" class="p-2 text-slate-400 hover:text-white transition-colors" title="Anteprima Cliente">
+                <i class="fas fa-eye"></i>
+            </button>
+            
+            <button onclick="exportProposal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-file-export mr-2"></i>Esporta
+            </button>
+        </div>
+    </header>
+
+    <div class="flex h-[calc(100vh-64px)]">
+        
+        <!-- Sidebar Intelligence -->
+        <aside class="w-96 bg-slate-800 border-r border-slate-700 overflow-y-auto">
+            <div class="p-4">
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Elementi disponibili</h2>
+                    <div class="flex justify-between items-center text-xs text-slate-500">
+                        <span>Trascina per comporre</span>
+                        <span class="text-blue-400" id="suggestion-count"></span>
+                    </div>
+                </div>
+
+                <!-- AI Suggestions Box -->
+                <div id="ai-suggestions" class="hidden mb-4 p-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 rounded-lg">
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-robot text-amber-400 mt-0.5"></i>
+                        <div>
+                            <p class="text-xs font-semibold text-amber-400 mb-1">Suggerimento IA</p>
+                            <p class="text-xs text-slate-300" id="ai-text">Aggiungi elementi per vedere suggerimenti intelligenti</p>
+                            <button onclick="applyAISuggestion()" class="mt-2 text-xs bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded transition-colors">
+                                Applica suggerimento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dynamic Elements Panel -->
+                <div id="elements-panel">
+                    <!-- Content loaded dynamically based on mode -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Canvas -->
+        <main class="flex-1 flex flex-col bg-slate-900 relative">
+            <!-- Smart Toolbar -->
+            <div class="h-14 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6">
+                <div class="flex items-center gap-4">
+                    <span id="canvas-title" class="font-semibold text-slate-300">Nuovo Evento</span>
+                    <span class="text-slate-600">|</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-slate-400">Valore totale:</span>
+                        <span id="total-value" class="text-green-400 font-mono font-bold text-lg">€0</span>
+                        <span id="bundle-discount" class="hidden text-xs text-amber-400 bg-amber-400/20 px-2 py-0.5 rounded-full">
+                            -15% Bundle
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <div class="text-xs text-slate-400 bg-slate-700 px-3 py-1.5 rounded-full">
+                        <i class="fas fa-users mr-1"></i> <span id="guest-count">0</span> ospiti
+                    </div>
+                    <button onclick="clearCanvas()" class="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 border border-red-500/30 rounded-full hover:bg-red-500/10 transition-colors">
+                        <i class="fas fa-trash-alt mr-1"></i> Svuota
+                    </button>
+                </div>
+            </div>
+
+            <!-- Drop Zone -->
+            <div id="canvas" class="flex-1 drop-zone p-8 relative overflow-auto" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)">
+                <div id="empty-state" class="absolute inset-0 flex items-center justify-center text-slate-600 pointer-events-none">
+                    <div class="text-center">
+                        <i class="fas fa-magic text-6xl mb-4 opacity-20 animate-pulse"></i>
+                        <p class="text-lg font-medium">Inizia trascinando elementi</p>
+                        <p class="text-sm opacity-60 mt-2">L'IA suggerirà combinazioni ottimali automaticamente</p>
+                    </div>
+                </div>
+                
+                <div id="canvas-content" class="flex flex-wrap gap-6 content-start relative"></div>
+                
+                <!-- Tooltip -->
+                <div id="tooltip" class="tooltip"></div>
+            </div>
+
+            <!-- Analytics Panel (Bottom) -->
+            <div id="analytics-panel" class="h-48 bg-slate-800 border-t border-slate-700 p-4 hidden">
+                <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                    <i class="fas fa-chart-line text-blue-400"></i> Analytics Funnel
+                </h3>
+                <div class="grid grid-cols-4 gap-4 h-full pb-4">
+                    <div class="bg-slate-700/50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-cyan-400" id="funnel-awareness">0</div>
+                        <div class="text-xs text-slate-400 mt-1">Awareness</div>
+                        <div class="mt-2 h-1 bg-slate-600 rounded-full overflow-hidden">
+                            <div class="h-full bg-cyan-400 w-full"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-700/50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-blue-400" id="funnel-interest">0</div>
+                        <div class="text-xs text-slate-400 mt-1">Interest</div>
+                        <div class="mt-2 h-1 bg-slate-600 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-400" style="width: 65%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-700/50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-purple-400" id="funnel-decision">0</div>
+                        <div class="text-xs text-slate-400 mt-1">Decision</div>
+                        <div class="mt-2 h-1 bg-slate-600 rounded-full overflow-hidden">
+                            <div class="h-full bg-purple-400" style="width: 35%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-700/50 rounded p-3 text-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-green-600/20 to-transparent"></div>
+                        <div class="relative">
+                            <div class="text-2xl font-bold text-green-400" id="funnel-action">€0</div>
+                            <div class="text-xs text-slate-400 mt-1">Revenue Potential</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Properties Panel -->
+        <div id="properties-panel" class="absolute right-6 top-20 w-80 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl p-4 hidden z-40 backdrop-blur-sm bg-slate-800/95">
+            <h3 class="font-semibold text-white mb-3 border-b border-slate-700 pb-2 flex justify-between items-center">
+                <span>Configurazione</span>
+                <button onclick="closeProperties()" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Quantità / Numero ospiti</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="prop-quantity" class="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm" value="1" onchange="updateItemConfig()">
+                        <span class="text-xs text-slate-500">pax</span>
+                    </div>
+                </div>
+                
+                <div id="upsell-options" class="hidden">
+                    <label class="text-xs text-slate-400 block mb-2">Opzioni Upsell</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" id="opt-premium" onchange="updateItemConfig()" class="rounded border-slate-600 bg-slate-700 text-blue-600">
+                            <span>Upgrade Premium (+30%)</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" id="opt-early" onchange="updateItemConfig()" class="rounded border-slate-600 bg-slate-700 text-blue-600">
+                            <span>Early Bird (-20%)</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Note interne</label>
+                    <textarea id="prop-notes" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm h-20 resize-none" placeholder="Aggiungi note..."></textarea>
+                </div>
+                
+                <div class="pt-2 border-t border-slate-700">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-slate-400">Subtotale:</span>
+                        <span class="text-white font-mono" id="prop-subtotal">€0</span>
+                    </div>
+                    <button onclick="deleteSelectedItem()" class="w-full bg-red-600/20 text-red-400 border border-red-600/50 py-2 rounded text-sm hover:bg-red-600/30 transition-colors">
+                        <i class="fas fa-trash-alt mr-1"></i> Rimuovi elemento
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-8">
+        <div class="bg-white rounded-xl max-w-4xl w-full h-full overflow-auto client-preview relative">
+            <button onclick="togglePreview()" class="absolute top-4 right-4 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="p-8 max-w-3xl mx-auto">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl">
+                        <i class="fas fa-glass-cheers"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">La tua proposta evento</h2>
+                    <p class="text-gray-500">Creato su misura per te</p>
+                </div>
+                
+                <div id="preview-content">
+                    <!-- Dynamic preview content -->
+                </div>
+                
+                <div class="mt-8 pt-8 border-t border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-gray-600">Totale stimato:</span>
+                        <span class="text-3xl font-bold text-green-600" id="preview-total">€0</span>
+                    </div>
+                    <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors">
+                        Richiedi preventivo definitivo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let currentMode = 'event';
+        let selectedItem = null;
+        let draggedElement = null;
+        let canvasItems = [];
+        let itemCounter = 0;
+        
+        // Data Models
+        const eventElements = {
+            A: { label: 'Location & Spazi', color: 'blue', items: [
+                { id: 'A1', name: 'Sala Principale', price: 500, desc: 'Fino a 80 ospiti, audio basic', type: 'base' },
+                { id: 'A2', name: 'Terrazza Panoramica', price: 350, desc: 'Vista città, 40 ospiti', type: 'base' },
+                { id: 'A3', name: 'Sala Privée Exclusive', price: 800, desc: '20 ospiti, concierge dedicato', type: 'premium' }
+            ]},
+            B: { label: 'Entertainment', color: 'purple', items: [
+                { id: 'B1', name: 'Jazz Band Live', price: 600, desc: 'Quartetto 3 ore', type: 'upsell', pairsWith: ['A3', 'C1'] },
+                { id: 'B2', name: 'DJ Set Professional', price: 400, desc: 'Console + luci', type: 'standard' },
+                { id: 'B3', name: 'Cabaret Show', price: 900, desc: 'Spettacolo interattivo', type: 'premium', pairsWith: ['A3'] }
+            ]},
+            C: { label: 'Food & Beverage', color: 'orange', items: [
+                { id: 'C1', name: 'Menu Degustazione 5 portate', price: 65, desc: 'Wine pairing incluso', type: 'premium', perPerson: true },
+                { id: 'C2', name: 'Aperitivo Premium', price: 25, desc: 'Buffet + open bar 2h', type: 'base', perPerson: true },
+                { id: 'C3', name: 'Catering Personalizzato', price: 45, desc: 'Menu su misura', type: 'standard', perPerson: true }
+            ]},
+            D: { label: 'Servizi Add-on', color: 'pink', items: [
+                { id: 'D1', name: 'Fotografo Professionale', price: 300, desc: 'Shooting 4h + album', type: 'cross', pairsWith: ['A1', 'A3'] },
+                { id: 'D2', name: 'Design Floreale', price: 200, desc: 'Centrotavola + allestimento', type: 'cross', pairsWith: ['A1', 'A2', 'A3'] },
+                { id: 'D3', name: 'Hostess Multilingue', price: 150, desc: '2 hostess accoglienza', type: 'addon' }
+            ]},
+            E: { label: 'Tecnologia', color: 'green', items: [
+                { id: 'E1', name: 'Live Streaming', price: 400, desc: 'Diretta evento', type: 'addon' },
+                { id: 'E2', name: 'Photo Booth', price: 250, desc: 'Cabina foto interattiva', type: 'cross', pairsWith: ['B2'] }
+            ]}
+        };
+        
+        const funnelElements = {
+            awareness: { label: '1. Awareness', color: 'cyan', stage: 'top', items: [
+                { id: 'aw1', name: 'Social Media Ads', channel: 'social', conversion: 15, cost: 5 },
+                { id: 'aw2', name: 'Google SEO/Maps', channel: 'organic', conversion: 25, cost: 0 },
+                { id: 'aw3', name: 'Partnership Locali', channel: 'partnership', conversion: 30, cost: 2 }
+            ]},
+            interest: { label: '2. Interest', color: 'blue', stage: 'mid', items: [
+                { id: 'in1', name: 'Lead Magnet Download', strategy: 'content', conversion: 35, value: 0 },
+                { id: 'in2', name: 'Virtual Tour 360°', strategy: 'engagement', conversion: 45, value: 0 },
+                { id: 'in3', name: 'Preventivo Online', strategy: 'quote', conversion: 60, value: 0 }
+            ]},
+            decision: { label: '3. Decision', color: 'purple', stage: 'bot', items: [
+                { id: 'de1', name: 'Offerta Early Bird', strategy: 'scarcity', conversion: 75, discount: 20 },
+                { id: 'de2', name: 'Bundle Completo', strategy: 'bundle', conversion: 65, discount: 15 },
+                { id: 'de3', name: 'Testimonianze Video', strategy: 'social-proof', conversion: 55 }
+            ]},
+            action: { label: '4. Action', color: 'green', stage: 'conv', items: [
+                { id: 'ac1', name: 'Upsell Premium', type: 'upsell', value: '+30%' },
+                { id: 'ac2', name: 'Cross-sell Extra', type: 'cross', value: '+15%' },
+                { id: 'ac3', name: 'Abbonamento', type: 'recurring', value: 'LTV+' }
+            ]}
+        };
+        
+        // Rules Engine per suggerimenti intelligenti
+        const suggestionRules = {
+            'A1': ['B2', 'D1', 'D2'], // Sala principale -> DJ, Foto, Fiori
+            'A2': ['B2', 'D2', 'C2'], // Terrazza -> DJ, Fiori, Aperitivo
+            'A3': ['B1', 'B3', 'C1', 'D1'], // Privée -> Jazz/Cabaret, Degustazione, Foto
+            'C1': ['B1'], // Degustazione -> Jazz
+            'B2': ['E2'] // DJ -> Photo Booth
+        };
+        
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            renderSidebar();
+            setupDragListeners();
+            
+            // Auto-save ogni 30 secondi
+            setInterval(() => {
+                if (canvasItems.length > 0) saveToStorage();
+            }, 30000);
+        });
+        
+        function renderSidebar() {
+            const panel = document.getElementById('elements-panel');
+            
+            if (currentMode === 'event') {
+                let html = '';
+                for (const [cat, data] of Object.entries(eventElements)) {
+                    html += `
+                        <div class="mb-6 sidebar-category border-${data.color}-500 bg-slate-700/30 rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="font-semibold text-${data.color}-400">${cat}. ${data.label}</span>
+                                <span class="text-xs bg-${data.color}-500/20 text-${data.color}-300 px-2 py-1 rounded">${data.items.length}</span>
+                            </div>
+                            <div class="space-y-2">
+                                ${data.items.map(item => `
+                                    <div class="drag-item bg-slate-600 hover:bg-slate-500 p-3 rounded border border-slate-500 text-sm group relative" 
+                                         draggable="true" 
+                                         data-id="${item.id}"
+                                         data-category="${cat}"
+                                         data-price="${item.price}"
+                                         data-perperson="${item.perPerson || false}"
+                                         onmouseenter="showTooltip(event, '${item.desc}')"
+                                         onmouseleave="hideTooltip()">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <div class="font-medium text-white">${item.id}. ${item.name}</div>
+                                                <div class="text-xs text-slate-400 mt-0.5">${item.type}</div>
+                                            </div>
+                                            <span class="text-${data.color}-400 font-bold">€${item.price}</span>
+                                        </div>
+                                        ${item.perPerson ? '<span class="text-[10px] text-slate-500 mt-1 block">a persona</span>' : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                panel.innerHTML = html;
+            } else {
+                let html = '';
+                for (const [stage, data] of Object.entries(funnelElements)) {
+                    html += `
+                        <div class="mb-6 sidebar-category border-${data.color}-500 bg-slate-700/30 rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="font-semibold text-${data.color}-400">${data.label}</span>
+                                <span class="text-xs bg-${data.color}-500/20 text-${data.color}-300 px-2 py-1 rounded uppercase">${data.stage}</span>
+                            </div>
+                            <div class="space-y-2">
+                                ${data.items.map(item => `
+                                    <div class="drag-item bg-slate-600 hover:bg-slate-500 p-3 rounded border border-slate-500 text-sm" 
+                                         draggable="true"
+                                         data-id="${item.id}"
+                                         data-stage="${stage}"
+                                         data-conversion="${item.conversion || 0}">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-8 h-8 rounded-full bg-${data.color}-500/20 flex items-center justify-center">
+                                                <i class="fas ${getFunnelIcon(item)} text-${data.color}-400 text-xs"></i>
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="font-medium text-white text-xs">${item.name}</div>
+                                                ${item.conversion ? `<div class="text-[10px] text-${data.color}-400">Conv: ${item.conversion}%</div>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                panel.innerHTML = html;
+            }
+            
+            setupDragListeners();
+        }
+        
+        function getFunnelIcon(item) {
+            if (item.channel === 'social') return 'fa-hashtag';
+            if (item.channel === 'organic') return 'fa-search';
+            if (item.strategy === 'scarcity') return 'fa-clock';
+            if (item.strategy === 'bundle') return 'fa-box-open';
+            return 'fa-arrow-right';
+        }
+        
+        function setupDragListeners() {
+            document.querySelectorAll('.drag-item').forEach(item => {
+                item.addEventListener('dragstart', drag);
+            });
+        }
+        
+        function allowDrop(ev) {
+            ev.preventDefault();
+            document.getElementById('canvas').classList.add('drag-over');
+        }
+        
+        function leaveDrop(ev) {
+            document.getElementById('canvas').classList.remove('drag-over');
+        }
+        
+        function drag(ev) {
+            draggedElement = ev.target;
+            ev.dataTransfer.setData("id", ev.target.dataset.id);
+            ev.dataTransfer.setData("category", ev.target.dataset.category || '');
+            ev.dataTransfer.setData("price", ev.target.dataset.price || '0');
+            ev.dataTransfer.setData("perperson", ev.target.dataset.perperson || 'false');
+            ev.dataTransfer.setData("stage", ev.target.dataset.stage || '');
+        }
+        
+        function drop(ev) {
+            ev.preventDefault();
+            document.getElementById('canvas').classList.remove('drag-over');
+            document.getElementById('empty-state').style.display = 'none';
+            
+            const id = ev.dataTransfer.getData("id");
+            const category = ev.dataTransfer.getData("category");
+            const price = parseFloat(ev.dataTransfer.getData("price")) || 0;
+            const perPerson = ev.dataTransfer.getData("perperson") === 'true';
+            const stage = ev.dataTransfer.getData("stage");
+            
+            addItemToCanvas(id, category, price, perPerson, stage);
+        }
+        
+        function addItemToCanvas(id, category, price, perPerson, stage) {
+            itemCounter++;
+            const itemId = `item-${itemCounter}`;
+            
+            let itemData;
+            if (currentMode === 'event') {
+                // Trova dati completi
+                for (const [cat, data] of Object.entries(eventElements)) {
+                    const found = data.items.find(i => i.id === id);
+                    if (found) {
+                        itemData = { ...found, category: cat, color: data.color };
+                        break;
+                    }
+                }
+                
+                const item = {
+                    id: itemId,
+                    templateId: id,
+                    ...itemData,
+                    quantity: perPerson ? 10 : 1,
+                    options: { premium: false, early: false },
+                    notes: ''
+                };
+                
+                canvasItems.push(item);
+                renderEventItem(item);
+                analyzeBundle();
+                checkSuggestions(id);
+            } else {
+                // Funnel mode
+                for (const [st, data] of Object.entries(funnelElements)) {
+                    const found = data.items.find(i => i.id === id);
+                    if (found) {
+                        itemData = { ...found, stage: st, color: data.color };
+                        break;
+                    }
+                }
+                
+                const item = {
+                    id: itemId,
+                    templateId: id,
+                    ...itemData
+                };
+                
+                canvasItems.push(item);
+                renderFunnelItem(item);
+                updateFunnelAnalytics();
+            }
+            
+            saveToStorage();
+            showSaveStatus('saved');
+        }
+        
+        function renderEventItem(item) {
+            const canvas = document.getElementById('canvas-content');
+            const basePrice = item.price * item.quantity;
+            const finalPrice = calculateItemPrice(item, basePrice);
+            
+            const html = `
+                <div id="${item.id}" class="canvas-item w-72 bg-slate-800 border-2 border-${item.color}-500 rounded-lg shadow-xl overflow-hidden cursor-pointer hover:shadow-2xl hover:border-${item.color}-400 transition-all relative group"
+                     onclick="selectItem('${item.id}')" data-price="${finalPrice}">
+                    
+                    ${item.perPerson ? '<div class="absolute top-2 right-2 text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">per persona</div>' : ''}
+                    
+                    <div class="bg-${item.color}-500/20 px-4 py-3 border-b border-${item.color}-500/30 flex justify-between items-center">
+                        <span class="text-xs font-bold text-${item.color}-400">${item.category}.${item.id.split('-')[1]}</span>
+                        <i class="fas fa-grip-lines text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                    </div>
+                    
+                    <div class="p-4">
+                        <h4 class="font-semibold text-white mb-1">${item.name}</h4>
+                        <p class="text-xs text-slate-400 mb-3 line-clamp-2">${item.desc}</p>
+                        
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <div class="text-xs text-slate-500 mb-1">Quantità: ${item.quantity}</div>
+                                <div class="text-${item.color}-400 font-bold text-lg">€${finalPrice.toLocaleString()}</div>
+                                ${finalPrice < (item.price * item.quantity) ? `<div class="text-[10px] text-amber-400 line-through">€${(item.price * item.quantity).toLocaleString()}</div>` : ''}
+                            </div>
+                            ${item.pairsWith ? '<div class="text-amber-400 text-xs"><i class="fas fa-star"></i> Top match</div>' : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="px-4 py-2 bg-slate-700/30 border-t border-slate-700 flex justify-between items-center text-xs text-slate-500">
+                        <span>${item.type}</span>
+                        <button onclick="event.stopPropagation(); removeItem('${item.id}')" class="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            canvas.insertAdjacentHTML('beforeend', html);
+            updateTotals();
+        }
+        
+        function renderFunnelItem(item) {
+            const canvas = document.getElementById('canvas-content');
+            const index = canvasItems.filter(i => i.stage && !i.removed).length;
+            
+            const html = `
+                <div id="${item.id}" class="canvas-item w-full max-w-2xl bg-slate-800 border-l-4 border-${item.color}-500 rounded-lg shadow-lg p-4 hover:bg-slate-750 transition-all relative"
+                     style="margin-left: ${index * 20}px">
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-${item.color}-500/20 flex items-center justify-center">
+                                <i class="fas ${getFunnelIcon(item)} text-${item.color}-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <span class="text-xs text-${item.color}-400 uppercase font-bold tracking-wider">${item.stage}</span>
+                                <h4 class="font-semibold text-white text-lg">${item.name}</h4>
+                                ${item.conversion ? `<p class="text-xs text-slate-400 mt-1">Tasso conversione: ${item.conversion}%</p>` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            ${item.discount ? `<span class="bg-red-500/20 text-red-400 text-xs px-3 py-1 rounded-full font-bold">-${item.discount}%</span>` : ''}
+                            ${item.value ? `<span class="bg-green-500/20 text-green-400 text-xs px-3 py-1 rounded-full font-bold">${item.value}</span>` : ''}
+                            <button onclick="removeItem('${item.id}')" class="text-slate-500 hover:text-red-400 transition-colors">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    ${index < 3 ? `<div class="funnel-connector"></div>` : ''}
+                </div>
+            `;
+            
+            canvas.insertAdjacentHTML('beforeend', html);
+        }
+        
+        function calculateItemPrice(item, base) {
+            let price = base;
+            if (item.options.premium) price *= 1.3;
+            if (item.options.early) price *= 0.8;
+            return Math.round(price);
+        }
+        
+        function analyzeBundle() {
+            const categories = canvasItems.map(i => i.category).filter((v, i, a) => a.indexOf(v) === i);
+            const hasLocation = categories.includes('A');
+            const hasFnb = categories.includes('C');
+            const hasEntertainment = categories.includes('B');
+            const hasService = categories.includes('D');
+            
+            if (hasLocation && hasFnb && (hasEntertainment || hasService)) {
+                document.getElementById('bundle-discount').classList.remove('hidden');
+                return 0.85; // 15% discount
+            } else {
+                document.getElementById('bundle-discount').classList.add('hidden');
+                return 1;
+            }
+        }
+        
+        function checkSuggestions(lastAddedId) {
+            const suggestions = suggestionRules[lastAddedId];
+            if (!suggestions) {
+                document.getElementById('ai-suggestions').classList.add('hidden');
+                return;
+            }
+            
+            const addedIds = canvasItems.map(i => i.templateId);
+            const missing = suggestions.filter(s => !addedIds.includes(s));
+            
+            if (missing.length > 0) {
+                const suggestionText = missing.map(id => {
+                    for (const [cat, data] of Object.entries(eventElements)) {
+                        const item = data.items.find(i => i.id === id);
+                        if (item) return `${id} (${item.name})`;
+                    }
+                    return id;
+                }).join(', ');
+                
+                document.getElementById('ai-text').textContent = `Clienti che hanno scelto ${lastAddedId} hanno aggiunto spesso: ${suggestionText}`;
+                document.getElementById('ai-suggestions').classList.remove('hidden');
+                document.getElementById('ai-suggestions').dataset.suggestions = JSON.stringify(missing);
+            }
+        }
+        
+        function applyAISuggestion() {
+            const suggestions = JSON.parse(document.getElementById('ai-suggestions').dataset.suggestions || '[]');
+            if (suggestions.length > 0) {
+                // Aggiungi il primo suggerimento
+                const id = suggestions[0];
+                for (const [cat, data] of Object.entries(eventElements)) {
+                    const item = data.items.find(i => i.id === id);
+                    if (item) {
+                        addItemToCanvas(id, cat, item.price, item.perPerson || false, '');
+                        break;
+                    }
+                }
+                document.getElementById('ai-suggestions').classList.add('hidden');
+            }
+        }
+        
+        function updateTotals() {
+            const bundleMultiplier = analyzeBundle();
+            let total = 0;
+            let guests = 0;
+            
+            canvasItems.forEach(item => {
+                if (item.removed) return;
+                const base = item.price * item.quantity;
+                const final = calculateItemPrice(item, base);
+                total += final;
+                if (item.perPerson && item.quantity > guests) guests = item.quantity;
+            });
+            
+            total = Math.round(total * bundleMultiplier);
+            document.getElementById('total-value').textContent = '€' + total.toLocaleString();
+            document.getElementById('guest-count').textContent = guests;
+        }
+        
+        function updateFunnelAnalytics() {
+            const stages = ['awareness', 'interest', 'decision', 'action'];
+            let projectedValue = 0;
+            
+            stages.forEach(stage => {
+                const items = canvasItems.filter(i => i.stage === stage && !i.removed);
+                const count = items.length;
+                document.getElementById(`funnel-${stage}`).textContent = count;
+                
+                if (stage === 'action') {
+                    // Calcola valore potenziale
+                    const decisionItems = canvasItems.filter(i => i.stage === 'decision');
+                    decisionItems.forEach(d => {
+                        if (d.discount) projectedValue += 1000 * (d.discount / 100); // Simulazione
+                    });
+                }
+            });
+            
+            document.getElementById('funnel-action').textContent = '€' + projectedValue.toLocaleString();
+            document.getElementById('analytics-panel').classList.remove('hidden');
+        }
+        
+        function selectItem(id) {
+            document.querySelectorAll('.canvas-item').forEach(el => {
+                el.classList.remove('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-slate-800');
+            });
+            
+            const item = canvasItems.find(i => i.id === id);
+            if (!item) return;
+            
+            selectedItem = id;
+            document.getElementById(id).classList.add('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-slate-800');
+            
+            // Popola proprietà
+            document.getElementById('prop-quantity').value = item.quantity;
+            document.getElementById('prop-notes').value = item.notes || '';
+            document.getElementById('opt-premium').checked = item.options?.premium || false;
+            document.getElementById('opt-early').checked = item.options?.early || false;
+            
+            document.getElementById('upsell-options').classList.remove('hidden');
+            document.getElementById('properties-panel').classList.remove('hidden');
+            
+            updatePropSubtotal();
+        }
+        
+        function updateItemConfig() {
+            if (!selectedItem) return;
+            
+            const item = canvasItems.find(i => i.id === selectedItem);
+            if (!item) return;
+            
+            item.quantity = parseInt(document.getElementById('prop-quantity').value) || 1;
+            item.notes = document.getElementById('prop-notes').value;
+            item.options = {
+                premium: document.getElementById('opt-premium').checked,
+                early: document.getElementById('opt-early').checked
+            };
+            
+            updatePropSubtotal();
+            updateTotals();
+            
+            // Rerender
+            document.getElementById(selectedItem).remove();
+            if (currentMode === 'event') {
+                renderEventItem(item);
+            } else {
+                renderFunnelItem(item);
+            }
+            
+            saveToStorage();
+        }
+        
+        function updatePropSubtotal() {
+            if (!selectedItem) return;
+            const item = canvasItems.find(i => i.id === selectedItem);
+            const base = item.price * item.quantity;
+            const final = calculateItemPrice(item, base);
+            document.getElementById('prop-subtotal').textContent = '€' + final.toLocaleString();
+        }
+        
+        function removeItem(id) {
+            const item = canvasItems.find(i => i.id === id);
+            if (item) item.removed = true;
+            
+            document.getElementById(id).remove();
+            closeProperties();
+            
+            if (currentMode === 'event') {
+                updateTotals();
+            } else {
+                updateFunnelAnalytics();
+            }
+            
+            if (document.getElementById('canvas-content').children.length === 0) {
+                document.getElementById('empty-state').style.display = 'flex';
+                document.getElementById('analytics-panel').classList.add('hidden');
+            }
+            
+            saveToStorage();
+        }
+        
+        function deleteSelectedItem() {
+            if (selectedItem) removeItem(selectedItem);
+        }
+        
+        function closeProperties() {
+            document.getElementById('properties-panel').classList.add('hidden');
+            document.querySelectorAll('.canvas-item').forEach(el => {
+                el.classList.remove('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-slate-800');
+            });
+            selectedItem = null;
+        }
+        
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            document.getElementById('btn-event').className = mode === 'event' 
+                ? 'px-4 py-2 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow-lg'
+                : 'px-4 py-2 rounded-md text-sm font-medium transition-all text-slate-400 hover:text-white';
+                
+            document.getElementById('btn-funnel').className = mode === 'funnel'
+                ? 'px-4 py-2 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow-lg'
+                : 'px-4 py-2 rounded-md text-sm font-medium transition-all text-slate-400 hover:text-white';
+            
+            document.getElementById('canvas-title').textContent = mode === 'event' ? 'Nuovo Evento' : 'Sales Funnel Strategy';
+            document.getElementById('analytics-panel').classList.toggle('hidden', mode !== 'funnel');
+            
+            clearCanvas();
+            renderSidebar();
+        }
+        
+        function clearCanvas() {
+            document.getElementById('canvas-content').innerHTML = '';
+            document.getElementById('empty-state').style.display = 'flex';
+            canvasItems = [];
+            document.getElementById('total-value').textContent = '€0';
+            document.getElementById('bundle-discount').classList.add('hidden');
+            closeProperties();
+        }
+        
+        // Storage
+        function saveToStorage() {
+            showSaveStatus('saving');
+            const data = {
+                mode: currentMode,
+                items: canvasItems.filter(i => !i.removed),
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('restaurantEventPro', JSON.stringify(data));
+            setTimeout(() => showSaveStatus('saved'), 500);
+        }
+        
+        function loadFromStorage() {
+            const saved = localStorage.getItem('restaurantEventPro');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    // Restore logic qui se necessario
+                    console.log('Dati caricati:', data);
+                } catch(e) {
+                    console.error('Errore caricamento:', e);
+                }
+            }
+        }
+        
+        function showSaveStatus(status) {
+            const el = document.getElementById('save-status');
+            if (status === 'saving') {
+                el.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> <span>Salvataggio...</span>';
+                el.className = 'auto-save-indicator saving flex items-center gap-2 text-xs mr-4';
+            } else {
+                el.innerHTML = '<i class="fas fa-check-circle"></i> <span>Salvato</span>';
+                el.className = 'auto-save-indicator saved flex items-center gap-2 text-xs mr-4';
+            }
+        }
+        
+        // Preview Mode
+        function togglePreview() {
+            const modal = document.getElementById('preview-modal');
+            if (modal.classList.contains('hidden')) {
+                generatePreview();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+        
+        function generatePreview() {
+            if (currentMode !== 'event') return;
+            
+            const container = document.getElementById('preview-content');
+            let html = '<div class="space-y-6">';
+            let total = 0;
+            
+            const categories = ['A', 'B', 'C', 'D', 'E'];
+            categories.forEach(cat => {
+                const catItems = canvasItems.filter(i => i.category === cat && !i.removed);
+                if (catItems.length === 0) return;
+                
+                html += `<div class="bg-gray-50 rounded-lg p-6">`;
+                html += `<h3 class="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">${eventElements[cat].label}</h3>`;
+                html += `<div class="space-y-3">`;
+                
+                catItems.forEach(item => {
+                    const price = calculateItemPrice(item, item.price * item.quantity);
+                    total += price;
+                    html += `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-gray-800">${item.name}</div>
+                                <div class="text-sm text-gray-500">${item.desc}</div>
+                                <div class="text-xs text-gray-400 mt-1">Quantità: ${item.quantity}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-gray-900">€${price.toLocaleString()}</div>
+                                ${item.options.premium ? '<div class="text-xs text-amber-600">Premium</div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            document.getElementById('preview-total').textContent = '€' + total.toLocaleString();
+        }
+        
+        function exportProposal() {
+            const data = {
+                mode: currentMode,
+                items: canvasItems.filter(i => !i.removed),
+                total: document.getElementById('total-value').textContent,
+                date: new Date().toLocaleDateString('it-IT')
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `proposta-evento-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Tooltip
+        function showTooltip(e, text) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.textContent = text;
+            tooltip.classList.add('show');
+            tooltip.style.left = e.pageX + 10 + 'px';
+            tooltip.style.top = e.pageY + 10 + 'px';
+        }
+        
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('show');
+        }
+        
+        // Click outside to close
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.canvas-item') && !e.target.closest('#properties-panel')) {
+                closeProperties();
+            }
+        });
+    </script>
+</body>
+</html>
