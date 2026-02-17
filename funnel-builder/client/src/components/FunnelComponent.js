@@ -7,10 +7,11 @@ import {
   Mail, 
   Calendar, 
   RotateCcw,
-  X
+  X,
+  Copy
 } from 'lucide-react';
 
-const FunnelComponent = ({ component, isSelected, onSelect, onRemove }) => {
+const FunnelComponent = ({ component, isSelected, onSelect, onRemove, onDuplicate }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'component',
     item: { ...component },
@@ -93,11 +94,22 @@ const FunnelComponent = ({ component, isSelected, onSelect, onRemove }) => {
         <Icon size={16} color="white" />
         <span className="component-title">{displayName}</span>
         <button
+          className="duplicate-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+          title="Duplicate (Ctrl+D)"
+        >
+          <Copy size={14} />
+        </button>
+        <button
           className="remove-button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
           }}
+          title="Delete (Del)"
         >
           <X size={14} />
         </button>

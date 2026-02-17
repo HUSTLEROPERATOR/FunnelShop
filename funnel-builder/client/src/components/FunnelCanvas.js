@@ -8,7 +8,8 @@ const FunnelCanvas = ({
   onSelectComponent,
   onDrop,
   onAddComponent,
-  onRemoveComponent
+  onRemoveComponent,
+  onDuplicateComponent
 }) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'component',
@@ -76,6 +77,7 @@ const FunnelCanvas = ({
           isSelected={selectedComponent?.id === component.id}
           onSelect={() => onSelectComponent(component)}
           onRemove={() => onRemoveComponent(component.id)}
+          onDuplicate={() => onDuplicateComponent(component)}
         />
       ))}
     </div>

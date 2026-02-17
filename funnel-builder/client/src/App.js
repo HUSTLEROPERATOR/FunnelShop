@@ -7,6 +7,7 @@ import ConfigurationPanel from './components/ConfigurationPanel';
 import MetricsPanel from './components/MetricsPanel';
 import ScenarioManager from './components/ScenarioManager';
 import BlueprintsPanel from './components/BlueprintsPanel';
+import KeyboardShortcuts from './components/KeyboardShortcuts';
 import { calculateMetrics } from './utils/simulationLogic';
 import './App.css';
 
@@ -92,6 +93,19 @@ function App() {
     }
   }, [selectedComponent]);
 
+  const duplicateComponent = useCallback((component) => {
+    const newComponent = {
+      ...component,
+      id: `${component.type}-${Date.now()}`,
+      position: {
+        x: component.position.x + 20,
+        y: component.position.y + 20
+      }
+    };
+    setComponents(prev => [...prev, newComponent]);
+    setSelectedComponent(newComponent);
+  }, []);
+
   const loadBlueprint = useCallback((blueprint) => {
     setComponents(blueprint.components);
     setSelectedComponent(null);
@@ -101,6 +115,44 @@ function App() {
     setComponents([]);
     setSelectedComponent(null);
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Delete selected component with Delete or Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedComponent && activeTab === 'builder') {
+        e.preventDefault();
+        removeComponent(selectedComponent.id);
+      }
+      
+      // Deselect with Escape
+      if (e.key === 'Escape' && selectedComponent) {
+        setSelectedComponent(null);
+      }
+      
+      // Toggle snap to grid with 'G' key
+      if (e.key === 'g' || e.key === 'G') {
+        setSnapToGrid(prev => !prev);
+      }
+      
+      // Duplicate selected component with Ctrl+D
+      if (e.ctrlKey && e.key === 'd' && selectedComponent && activeTab === 'builder') {
+        e.preventDefault();
+        duplicateComponent(selectedComponent);
+      }
+      
+      // Clear canvas with Ctrl+Shift+Delete (with confirmation)
+      if (e.ctrlKey && e.shiftKey && e.key === 'Delete' && components.length > 0) {
+        e.preventDefault();
+        if (window.confirm('Are you sure you want to clear all components?')) {
+          clearCanvas();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedComponent, components, activeTab, removeComponent, clearCanvas, duplicateComponent]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -152,6 +204,7 @@ function App() {
                   >
                     Clear All
                   </button>
+                  <KeyboardShortcuts />
                 </div>
                 <FunnelCanvas
                   components={components}
@@ -160,6 +213,7 @@ function App() {
                   onDrop={handleDrop}
                   onAddComponent={addComponent}
                   onRemoveComponent={removeComponent}
+                  onDuplicateComponent={duplicateComponent}
                 />
               </div>
               <div className="right-panel">
