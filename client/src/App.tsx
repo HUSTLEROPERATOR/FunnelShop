@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Save, Sparkles } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Save, Sparkles, Undo, Redo, AlertCircle } from 'lucide-react';
 import type { FunnelComponent, GlobalParameters, Blueprint } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -8,6 +8,11 @@ import { MetricsPanel } from './components/MetricsPanel';
 import { calculateMetrics } from './utils/calculateMetrics';
 
 const API_BASE = '/api';
+
+interface HistoryState {
+  components: FunnelComponent[];
+  globalParameters: GlobalParameters;
+}
 
 function App() {
   const [components, setComponents] = useState<FunnelComponent[]>([]);
@@ -20,12 +25,124 @@ function App() {
   });
   const [scenarioName, setScenarioName] = useState('Untitled Scenario');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryState[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   const metrics = calculateMetrics(components, globalParameters);
 
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
 
+  // Save state to history
+  const saveToHistory = useCallback(() => {
+    const newState: HistoryState = {
+      components: JSON.parse(JSON.stringify(components)),
+      globalParameters: { ...globalParameters },
+    };
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newState);
+    // Keep only last 50 states
+    if (newHistory.length > 50) {
+      newHistory.shift();
+    } else {
+      setHistoryIndex(historyIndex + 1);
+    }
+    setHistory(newHistory);
+  }, [components, globalParameters, history, historyIndex]);
+
+  // Undo
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevState = history[historyIndex - 1];
+      setComponents(JSON.parse(JSON.stringify(prevState.components)));
+      setGlobalParameters({ ...prevState.globalParameters });
+      setHistoryIndex(historyIndex - 1);
+    }
+  }, [history, historyIndex]);
+
+  // Redo
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1];
+      setComponents(JSON.parse(JSON.stringify(nextState.components)));
+      setGlobalParameters({ ...nextState.globalParameters });
+      setHistoryIndex(historyIndex + 1);
+    }
+  }, [history, historyIndex]);
+
+  // Delete component
+  const deleteComponent = useCallback((id: string) => {
+    saveToHistory();
+    setComponents((prev) => prev.filter((c) => c.id !== id));
+    setSelectedComponentId((prev) => (prev === id ? null : prev));
+  }, [saveToHistory]);
+
+  // Save scenario
+  const saveScenario = useCallback(async () => {
+    if (!scenarioName.trim()) {
+      setError('Please provide a scenario name');
+      return;
+    }
+    
+    setIsSaving(true);
+    setError(null);
+    try {
+      const scenario = {
+        name: scenarioName,
+        components,
+        globalParameters,
+      };
+      const response = await fetch(`${API_BASE}/scenarios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scenario),
+      });
+      if (response.ok) {
+        alert('Scenario saved successfully!');
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to save scenario');
+      }
+    } catch (error) {
+      console.error('Failed to save scenario:', error);
+      setError('Failed to save scenario. Please check your connection.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [scenarioName, components, globalParameters]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Undo: Ctrl+Z / Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Redo: Ctrl+Shift+Z / Cmd+Shift+Z or Ctrl+Y / Cmd+Y
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') || 
+          ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+      // Save: Ctrl+S / Cmd+S
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveScenario();
+      }
+      // Delete: Delete / Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedComponentId) {
+        e.preventDefault();
+        deleteComponent(selectedComponentId);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, selectedComponentId, saveScenario, deleteComponent]);
+
   const addComponent = (type: string) => {
+    saveToHistory();
     const newComponent: FunnelComponent = {
       id: `${type}-${Date.now()}`,
       type,
@@ -46,45 +163,30 @@ function App() {
   };
 
   const updateComponentProperties = (id: string, properties: Record<string, number | string>) => {
+    saveToHistory();
     setComponents(components.map((c) => (c.id === id ? { ...c, properties } : c)));
   };
 
-  const saveScenario = async () => {
-    setIsSaving(true);
-    try {
-      const scenario = {
-        name: scenarioName,
-        components,
-        globalParameters,
-      };
-      const response = await fetch(`${API_BASE}/scenarios`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scenario),
-      });
-      if (response.ok) {
-        alert('Scenario saved successfully!');
-      }
-    } catch (error) {
-      console.error('Failed to save scenario:', error);
-      alert('Failed to save scenario');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const loadBlueprint = async (blueprintId: string) => {
+    saveToHistory();
+    setError(null);
     try {
       const response = await fetch(`${API_BASE}/blueprints`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch blueprints');
+      }
       const blueprints: Blueprint[] = await response.json();
       const blueprint = blueprints.find((b) => b.id === blueprintId);
       if (blueprint) {
         setComponents(blueprint.components);
         setGlobalParameters(blueprint.globalParameters);
         setScenarioName(blueprint.name);
+      } else {
+        setError('Blueprint not found');
       }
     } catch (error) {
       console.error('Failed to load blueprint:', error);
+      setError('Failed to load blueprint. Please try again.');
     }
   };
 
@@ -100,9 +202,26 @@ function App() {
               value={scenarioName}
               onChange={(e) => setScenarioName(e.target.value)}
               className="px-3 py-1 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+              placeholder="Scenario name..."
             />
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={undo}
+              disabled={historyIndex <= 0}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo size={18} />
+            </button>
+            <button
+              onClick={redo}
+              disabled={historyIndex >= history.length - 1}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <Redo size={18} />
+            </button>
             <button
               onClick={() => loadBlueprint('restaurant-basic')}
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
@@ -114,12 +233,25 @@ function App() {
               onClick={saveScenario}
               disabled={isSaving}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+              title="Save (Ctrl+S)"
             >
               <Save size={18} />
               {isSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
         </div>
+        {error && (
+          <div className="mt-3 flex items-center gap-2 px-4 py-2 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
+            <AlertCircle size={18} />
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto text-red-200 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Metrics */}
@@ -135,12 +267,14 @@ function App() {
           selectedId={selectedComponentId}
           onSelectComponent={setSelectedComponentId}
           onMoveComponent={moveComponent}
+          onDeleteComponent={deleteComponent}
         />
         {selectedComponent && (
           <ConfigPanel
             component={selectedComponent}
             onUpdate={updateComponentProperties}
             onClose={() => setSelectedComponentId(null)}
+            onDelete={() => deleteComponent(selectedComponent.id)}
           />
         )}
       </div>

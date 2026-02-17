@@ -1,14 +1,15 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import type { FunnelComponent } from '../types';
 
 interface ConfigPanelProps {
   component: FunnelComponent | null;
   onUpdate: (id: string, properties: Record<string, number | string>) => void;
   onClose: () => void;
+  onDelete: () => void;
 }
 
-export const ConfigPanel: React.FC<ConfigPanelProps> = ({ component, onUpdate, onClose }) => {
+export const ConfigPanel: React.FC<ConfigPanelProps> = ({ component, onUpdate, onClose, onDelete }) => {
   if (!component) return null;
 
   const handlePropertyChange = (key: string, value: number | string) => {
@@ -59,6 +60,16 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ component, onUpdate, o
         {Object.entries(component.properties).map(([key, value]) =>
           renderPropertyInput(key, value as number | string)
         )}
+      </div>
+
+      <div className="mt-6 pt-6 border-t border-gray-700">
+        <button
+          onClick={onDelete}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+        >
+          <Trash2 size={18} />
+          Delete Component
+        </button>
       </div>
     </div>
   );

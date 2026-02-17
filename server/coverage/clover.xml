@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1771368515766" clover="3.2.0">
-  <project timestamp="1771368515766" name="All files">
+<coverage generated="1771368853593" clover="3.2.0">
+  <project timestamp="1771368853593" name="All files">
     <metrics statements="50" coveredstatements="46" conditionals="23" coveredconditionals="16" methods="10" coveredmethods="9" elements="83" coveredelements="71" complexity="0" loc="50" ncloc="50" packages="1" files="1" classes="1"/>
     <file name="index.js" path="/home/runner/work/FunnelShop/FunnelShop/server/index.js">
       <metrics statements="50" coveredstatements="46" conditionals="23" coveredconditionals="16" methods="10" coveredmethods="9"/>
