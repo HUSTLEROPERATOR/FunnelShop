@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trash2 } from 'lucide-react';
 import type { FunnelComponent } from '../types';
 
 interface CanvasProps {
@@ -6,6 +7,7 @@ interface CanvasProps {
   selectedId: string | null;
   onSelectComponent: (id: string) => void;
   onMoveComponent: (id: string, x: number, y: number) => void;
+  onDeleteComponent: (id: string) => void;
 }
 
 export const Canvas: React.FC<CanvasProps> = ({
@@ -13,6 +15,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   selectedId,
   onSelectComponent,
   onMoveComponent,
+  onDeleteComponent,
 }) => {
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -35,6 +38,11 @@ export const Canvas: React.FC<CanvasProps> = ({
     e.dataTransfer.dropEffect = 'move';
   };
 
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    onDeleteComponent(id);
+  };
+
   return (
     <div
       className="flex-1 bg-gray-900 relative overflow-auto"
@@ -52,7 +60,7 @@ export const Canvas: React.FC<CanvasProps> = ({
             draggable
             onDragStart={(e) => handleDragStart(e, component.id)}
             onClick={() => onSelectComponent(component.id)}
-            className={`absolute cursor-move p-4 bg-gray-700 rounded-lg border-2 transition-all ${
+            className={`absolute cursor-move p-4 bg-gray-700 rounded-lg border-2 transition-all group ${
               selectedId === component.id
                 ? 'border-blue-500 shadow-lg shadow-blue-500/50'
                 : 'border-gray-600 hover:border-gray-500'
@@ -63,6 +71,13 @@ export const Canvas: React.FC<CanvasProps> = ({
               minWidth: '150px',
             }}
           >
+            <button
+              onClick={(e) => handleDelete(e, component.id)}
+              className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Delete component (Delete/Backspace)"
+            >
+              <Trash2 size={14} />
+            </button>
             <div className="text-sm font-medium">{component.name}</div>
             <div className="text-xs text-gray-400 mt-1">{component.type}</div>
           </div>

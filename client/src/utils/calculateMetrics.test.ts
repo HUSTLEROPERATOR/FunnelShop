@@ -161,4 +161,125 @@ describe('calculateMetrics', () => {
     const expectedLoyalCustomers = Math.round(metrics.bookings * 0.3);
     expect(metrics.loyalCustomers).toBe(expectedLoyalCustomers);
   });
+
+  // New edge case tests
+  it('should handle negative values by treating them as zero', () => {
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'google-ads',
+        name: 'Google Ads',
+        position: { x: 0, y: 0 },
+        properties: {
+          cpc: -5.0,
+          budget: -1000,
+        },
+      },
+    ];
+
+    const metrics = calculateMetrics(components, defaultGlobalParams);
+    
+    expect(metrics.visitors).toBe(0);
+    expect(metrics.bookings).toBe(0);
+  });
+
+  it('should handle conversion rates greater than 1 by capping at 1', () => {
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'google-ads',
+        name: 'Google Ads',
+        position: { x: 0, y: 0 },
+        properties: {
+          cpc: 1.0,
+          budget: 1000,
+        },
+      },
+      {
+        id: '2',
+        type: 'landing-page',
+        name: 'Landing Page',
+        position: { x: 100, y: 0 },
+        properties: {
+          conversionRate: 2.5, // Invalid: greater than 100%
+        },
+      },
+    ];
+
+    const metrics = calculateMetrics(components, defaultGlobalParams);
+    
+    // Should cap conversion rate, so bookings should be reasonable
+    expect(metrics.bookings).toBeLessThanOrEqual(metrics.visitors);
+  });
+
+  it('should handle invalid global parameters gracefully', () => {
+    const invalidGlobalParams: GlobalParameters = {
+      monthlyBudget: -10000,
+      averageCheckSize: -50,
+      customerLifetimeVisits: -5,
+      profitMargin: -0.3,
+    };
+
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'google-ads',
+        name: 'Google Ads',
+        position: { x: 0, y: 0 },
+        properties: {
+          cpc: 1.0,
+          budget: 1000,
+        },
+      },
+    ];
+
+    const metrics = calculateMetrics(components, invalidGlobalParams);
+    
+    // Should return zeros for invalid global params
+    expect(metrics.visitors).toBe(0);
+    expect(metrics.bookings).toBe(0);
+    expect(metrics.revenue).toBe(0);
+    expect(metrics.profit).toBe(0);
+  });
+
+  it('should handle division by zero in CPC', () => {
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'google-ads',
+        name: 'Google Ads',
+        position: { x: 0, y: 0 },
+        properties: {
+          cpc: 0,
+          budget: 1000,
+        },
+      },
+    ];
+
+    const metrics = calculateMetrics(components, defaultGlobalParams);
+    
+    expect(metrics.visitors).toBe(0);
+    expect(Number.isFinite(metrics.visitors)).toBe(true);
+  });
+
+  it('should handle email campaign correctly', () => {
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'email-campaign',
+        name: 'Email Campaign',
+        position: { x: 0, y: 0 },
+        properties: {
+          recipients: 5000,
+          clickThroughRate: 0.1,
+          cost: 200,
+        },
+      },
+    ];
+
+    const metrics = calculateMetrics(components, defaultGlobalParams);
+    
+    expect(metrics.visitors).toBe(500); // 5000 * 0.1
+    expect(metrics.bookings).toBeGreaterThan(0);
+  });
 });
