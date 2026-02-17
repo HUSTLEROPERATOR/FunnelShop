@@ -7,6 +7,8 @@ import ConfigurationPanel from './components/ConfigurationPanel';
 import MetricsPanel from './components/MetricsPanel';
 import ScenarioManager from './components/ScenarioManager';
 import BlueprintsPanel from './components/BlueprintsPanel';
+import KeyboardShortcuts from './components/KeyboardShortcuts';
+import ComponentStats from './components/ComponentStats';
 import { calculateMetrics } from './utils/simulationLogic';
 import './App.css';
 
@@ -27,6 +29,8 @@ function App() {
     loyalCustomers: 0
   });
   const [activeTab, setActiveTab] = useState('builder');
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const gridSize = 20;
 
   // Calculate metrics whenever components or global params change
   useEffect(() => {
@@ -36,25 +40,44 @@ function App() {
 
   const handleDrop = useCallback((item, monitor) => {
     const delta = monitor.getDifferenceFromInitialOffset();
-    const left = Math.round(item.position.x + delta.x);
-    const top = Math.round(item.position.y + delta.y);
+    let left = Math.round(item.position.x + delta.x);
+    let top = Math.round(item.position.y + delta.y);
+    
+    // Snap to grid if enabled
+    if (snapToGrid) {
+      left = Math.round(left / gridSize) * gridSize;
+      top = Math.round(top / gridSize) * gridSize;
+    }
+    
+    // Keep components within bounds
+    left = Math.max(0, left);
+    top = Math.max(0, top);
     
     setComponents(prev => prev.map(component => 
       component.id === item.id 
         ? { ...component, position: { x: left, y: top } }
         : component
     ));
-  }, []);
+  }, [snapToGrid, gridSize]);
 
   const addComponent = useCallback((type, position) => {
+    let x = position.x;
+    let y = position.y;
+    
+    // Snap to grid if enabled
+    if (snapToGrid) {
+      x = Math.round(x / gridSize) * gridSize;
+      y = Math.round(y / gridSize) * gridSize;
+    }
+    
     const newComponent = {
       id: `${type}-${Date.now()}`,
       type,
-      position,
+      position: { x, y },
       props: getDefaultProps(type)
     };
     setComponents(prev => [...prev, newComponent]);
-  }, []);
+  }, [snapToGrid, gridSize]);
 
   const updateComponentProps = useCallback((componentId, newProps) => {
     setComponents(prev => prev.map(component =>
@@ -71,6 +94,19 @@ function App() {
     }
   }, [selectedComponent]);
 
+  const duplicateComponent = useCallback((component) => {
+    const newComponent = {
+      ...component,
+      id: `${component.type}-${Date.now()}`,
+      position: {
+        x: component.position.x + 20,
+        y: component.position.y + 20
+      }
+    };
+    setComponents(prev => [...prev, newComponent]);
+    setSelectedComponent(newComponent);
+  }, []);
+
   const loadBlueprint = useCallback((blueprint) => {
     setComponents(blueprint.components);
     setSelectedComponent(null);
@@ -80,6 +116,44 @@ function App() {
     setComponents([]);
     setSelectedComponent(null);
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Delete selected component with Delete or Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedComponent && activeTab === 'builder') {
+        e.preventDefault();
+        removeComponent(selectedComponent.id);
+      }
+      
+      // Deselect with Escape
+      if (e.key === 'Escape' && selectedComponent) {
+        setSelectedComponent(null);
+      }
+      
+      // Toggle snap to grid with 'G' key
+      if (e.key === 'g' || e.key === 'G') {
+        setSnapToGrid(prev => !prev);
+      }
+      
+      // Duplicate selected component with Ctrl+D
+      if (e.ctrlKey && e.key === 'd' && selectedComponent && activeTab === 'builder') {
+        e.preventDefault();
+        duplicateComponent(selectedComponent);
+      }
+      
+      // Clear canvas with Ctrl+Shift+Delete (with confirmation)
+      if (e.ctrlKey && e.shiftKey && e.key === 'Delete' && components.length > 0) {
+        e.preventDefault();
+        if (window.confirm('Are you sure you want to clear all components?')) {
+          clearCanvas();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedComponent, components, activeTab, removeComponent, clearCanvas, duplicateComponent]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -112,14 +186,38 @@ function App() {
           {activeTab === 'builder' && (
             <>
               <ComponentSidebar />
-              <FunnelCanvas
-                components={components}
-                selectedComponent={selectedComponent}
-                onSelectComponent={setSelectedComponent}
-                onDrop={handleDrop}
-                onAddComponent={addComponent}
-                onRemoveComponent={removeComponent}
-              />
+              <div className="canvas-container">
+                <div className="canvas-toolbar">
+                  <label className="toolbar-item">
+                    <input
+                      type="checkbox"
+                      checked={snapToGrid}
+                      onChange={(e) => setSnapToGrid(e.target.checked)}
+                    />
+                    <span>Snap to Grid</span>
+                  </label>
+                  <div className="toolbar-divider"></div>
+                  <button 
+                    className="toolbar-button"
+                    onClick={clearCanvas}
+                    disabled={components.length === 0}
+                    title="Clear Canvas"
+                  >
+                    Clear All
+                  </button>
+                  <KeyboardShortcuts />
+                  <ComponentStats components={components} />
+                </div>
+                <FunnelCanvas
+                  components={components}
+                  selectedComponent={selectedComponent}
+                  onSelectComponent={setSelectedComponent}
+                  onDrop={handleDrop}
+                  onAddComponent={addComponent}
+                  onRemoveComponent={removeComponent}
+                  onDuplicateComponent={duplicateComponent}
+                />
+              </div>
               <div className="right-panel">
                 <ConfigurationPanel
                   selectedComponent={selectedComponent}

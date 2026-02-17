@@ -7,10 +7,11 @@ import {
   Mail, 
   Calendar, 
   RotateCcw,
-  X
+  X,
+  Copy
 } from 'lucide-react';
 
-const FunnelComponent = ({ component, isSelected, onSelect, onRemove }) => {
+const FunnelComponent = ({ component, isSelected, onSelect, onRemove, onDuplicate }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'component',
     item: { ...component },
@@ -55,40 +56,70 @@ const FunnelComponent = ({ component, isSelected, onSelect, onRemove }) => {
     return colorMap[type] || '#6b7280';
   };
 
+  const getComponentColorDark = (type) => {
+    const colorMap = {
+      SocialMediaAds: '#145dbf',
+      GoogleAds: '#3367d6',
+      LandingPage: '#d4511f',
+      EmailSequence: '#10b981',
+      BookingSystem: '#7c3aed',
+      RetargetingAds: '#d97706'
+    };
+    return colorMap[type] || '#4a5568';
+  };
+
   const Icon = getIcon(component.type);
   const displayName = getDisplayName(component.type);
   const color = getComponentColor(component.type);
+  const colorDark = getComponentColorDark(component.type);
 
   return (
     <div
       ref={drag}
-      className={`funnel-component ${isSelected ? 'selected' : ''}`}
+      className={`funnel-component ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
       style={{
         left: component.position.x,
         top: component.position.y,
-        opacity: isDragging ? 0.5 : 1,
-        borderColor: color
+        opacity: isDragging ? 0.7 : 1,
+        borderColor: color,
+        '--component-color': color,
+        '--component-color-dark': colorDark
       }}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
       }}
     >
-      <div className="component-header" style={{ backgroundColor: color }}>
+      <div className="component-header">
         <Icon size={16} color="white" />
         <span className="component-title">{displayName}</span>
+        <button
+          className="duplicate-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+          title="Duplicate (Ctrl+D)"
+        >
+          <Copy size={14} />
+        </button>
         <button
           className="remove-button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
           }}
+          title="Delete (Del)"
         >
           <X size={14} />
         </button>
       </div>
       
       <div className="component-body">
+        <div className="connection-points">
+          <div className="connection-point connection-point-top" title="Input"></div>
+          <div className="connection-point connection-point-bottom" title="Output"></div>
+        </div>
         {component.type === 'SocialMediaAds' && (
           <div className="component-stats">
             <div>Platform: {component.props.platform}</div>
