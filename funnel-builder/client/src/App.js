@@ -51,11 +51,25 @@ function App() {
     left = Math.max(0, left);
     top = Math.max(0, top);
     
-    setComponents(prev => prev.map(component => 
-      component.id === item.id 
-        ? { ...component, position: { x: left, y: top } }
-        : component
-    ));
+    // Check if duplicating flag is set
+    const isDuplicating = monitor.getItem()?.isDuplicating;
+    
+    if (isDuplicating) {
+      // Create a duplicate component
+      const newComponent = {
+        ...item,
+        id: `${item.type}-${Date.now()}`,
+        position: { x: left, y: top }
+      };
+      setComponents(prev => [...prev, newComponent]);
+    } else {
+      // Move existing component
+      setComponents(prev => prev.map(component => 
+        component.id === item.id 
+          ? { ...component, position: { x: left, y: top } }
+          : component
+      ));
+    }
   }, [snapToGrid, gridSize]);
 
   const addComponent = useCallback((type, position) => {
@@ -101,6 +115,47 @@ function App() {
     setComponents([]);
     setSelectedComponent(null);
   }, []);
+
+  const duplicateComponent = useCallback((componentId) => {
+    const component = components.find(c => c.id === componentId);
+    if (component) {
+      const newComponent = {
+        ...component,
+        id: `${component.type}-${Date.now()}`,
+        position: {
+          x: component.position.x + 20,
+          y: component.position.y + 20
+        }
+      };
+      setComponents(prev => [...prev, newComponent]);
+      setSelectedComponent(newComponent);
+    }
+  }, [components]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Delete selected component with Delete or Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedComponent) {
+        e.preventDefault();
+        removeComponent(selectedComponent.id);
+      }
+      
+      // Duplicate selected component with Ctrl/Cmd + D
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd' && selectedComponent) {
+        e.preventDefault();
+        duplicateComponent(selectedComponent.id);
+      }
+      
+      // Deselect with Escape
+      if (e.key === 'Escape') {
+        setSelectedComponent(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedComponent, removeComponent, duplicateComponent]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -152,6 +207,18 @@ function App() {
                   >
                     Clear All
                   </button>
+                  <div className="toolbar-divider"></div>
+                  <button 
+                    className="toolbar-button"
+                    onClick={() => selectedComponent && duplicateComponent(selectedComponent.id)}
+                    disabled={!selectedComponent}
+                    title="Duplicate Selected (Ctrl+D)"
+                  >
+                    Duplicate
+                  </button>
+                  <span className="toolbar-item" style={{ fontSize: '0.75rem', color: '#718096' }}>
+                    💡 Shortcuts: Del, Ctrl+D, Esc
+                  </span>
                 </div>
                 <FunnelCanvas
                   components={components}

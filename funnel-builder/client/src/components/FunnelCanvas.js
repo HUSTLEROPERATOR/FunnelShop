@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDrop } from 'react-dnd';
 import FunnelComponent from './FunnelComponent';
+import ConnectionLine from './ConnectionLine';
 
 const FunnelCanvas = ({
   components,
@@ -10,6 +11,35 @@ const FunnelCanvas = ({
   onAddComponent,
   onRemoveComponent
 }) => {
+  // Calculate connections between components
+  const connections = useMemo(() => {
+    if (components.length < 2) return [];
+    
+    // Sort components by vertical position
+    const sortedComponents = [...components].sort((a, b) => a.position.y - b.position.y);
+    
+    // Create connections between consecutive components
+    const lines = [];
+    for (let i = 0; i < sortedComponents.length - 1; i++) {
+      const fromComp = sortedComponents[i];
+      const toComp = sortedComponents[i + 1];
+      
+      // Calculate center points of components (approximate)
+      const from = {
+        x: fromComp.position.x + 110, // ~half of min-width (220px)
+        y: fromComp.position.y + 60   // approximate component height
+      };
+      const to = {
+        x: toComp.position.x + 110,
+        y: toComp.position.y
+      };
+      
+      lines.push({ from, to, id: `${fromComp.id}-${toComp.id}` });
+    }
+    
+    return lines;
+  }, [components]);
+
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'component',
     drop: (item, monitor) => {
@@ -68,6 +98,16 @@ const FunnelCanvas = ({
           ) : null}
         </div>
       </div>
+      
+      {/* Draw connection lines */}
+      {connections.map((connection) => (
+        <ConnectionLine
+          key={connection.id}
+          from={connection.from}
+          to={connection.to}
+          color="#a0aec0"
+        />
+      ))}
       
       {components.map((component) => (
         <FunnelComponent

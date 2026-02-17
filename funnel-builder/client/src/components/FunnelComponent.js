@@ -13,7 +13,12 @@ import {
 const FunnelComponent = ({ component, isSelected, onSelect, onRemove }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'component',
-    item: { ...component },
+    item: () => {
+      return { 
+        ...component,
+        isDuplicating: false // Can be extended for drag+modifier duplication
+      };
+    },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
