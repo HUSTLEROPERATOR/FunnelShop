@@ -12,33 +12,150 @@ This project is a web application designed to help users visually build, configu
 
 ## 🛠️ Technologies Used
 
-*   **Frontend:** React (JavaScript) with `react-dnd` for drag-and-drop functionality.
-*   **Backend:** Node.js with Express.js (JavaScript) for API services and data persistence (in-memory for now).
+*   **Frontend:** React with TypeScript using Vite, Tailwind CSS, and `react-dnd` for drag-and-drop functionality.
+*   **Backend:** Node.js with Express.js for API services and data persistence (in-memory for now).
+*   **Testing:** Vitest for frontend, Jest for backend
+*   **Linting:** ESLint for both frontend and backend
 
 ## 🚀 How to Run
 
-1.  **Navigate to the project root:**
-    ```bash
-    cd C:\Users\risto\Desktop\IDEE 2025\FUNNEL\funnel-builder
-    ```
+### Prerequisites
 
-2.  **Start the Backend Server:**
-    Open a new terminal, navigate to the `server` directory, and run:
-    ```bash
-    cd server
-    npm install # Install backend dependencies if you haven't already
-    npm start
-    ```
-    The server will run on `http://localhost:5000`.
+- Node.js v20 or higher
+- npm v9 or higher
 
-3.  **Start the Frontend Development Server:**
-    Open another new terminal, navigate to the `client` directory, and run:
-    ```bash
-    cd client
-    npm install # Install frontend dependencies if you haven't already
-    npm start
-    ```
-    The React app will open in your browser (usually at `http://localhost:3000`).
+### Quick Start (Run Both Frontend and Backend)
+
+1. **Install all dependencies:**
+   ```bash
+   npm run install:all
+   ```
+
+2. **Run both servers concurrently:**
+   ```bash
+   npm run dev
+   ```
+   
+   This will start:
+   - Backend server on `http://localhost:5000`
+   - Frontend development server on `http://localhost:3000`
+
+### Running Frontend Only
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+The React app will open at `http://localhost:3000`.
+
+### Running Backend Only
+
+```bash
+cd server
+npm install
+npm start
+```
+
+For development with auto-reload:
+```bash
+cd server
+npm run dev
+```
+
+The server will run on `http://localhost:5000`.
+
+## 🧪 Testing
+
+### Run All Tests
+
+```bash
+npm test
+```
+
+### Frontend Tests Only
+
+```bash
+cd client
+npm test
+```
+
+### Backend Tests Only
+
+```bash
+cd server
+npm test
+```
+
+## 🔍 Linting
+
+### Lint All Code
+
+```bash
+npm run lint
+```
+
+### Lint Frontend Only
+
+```bash
+cd client
+npm run lint
+```
+
+### Lint Backend Only
+
+```bash
+cd server
+npm run lint
+```
+
+## 🏗️ Building for Production
+
+### Build Frontend
+
+```bash
+cd client
+npm run build
+```
+
+The production build will be in `client/dist/`.
+
+## 📁 Project Structure
+
+```
+funnel-shop/
+├── client/                 # Frontend React application
+│   ├── src/
+│   │   ├── components/    # React components (Sidebar, Canvas, ConfigPanel, etc.)
+│   │   ├── types/         # TypeScript type definitions
+│   │   ├── utils/         # Utility functions (calculateMetrics, etc.)
+│   │   ├── test/          # Test setup and utilities
+│   │   └── App.tsx        # Main application component
+│   ├── package.json
+│   └── vite.config.ts
+├── server/                # Backend Express application
+│   ├── index.js          # Main server file with API endpoints
+│   ├── index.test.js     # Server tests
+│   └── package.json
+├── package.json          # Root package.json for running both servers
+└── README.md
+```
+
+## 🌐 API Endpoints
+
+### Health Check
+- `GET /api/health` - Returns server health status
+
+### Blueprints
+- `GET /api/blueprints` - Get all available blueprint templates
+
+### Scenarios
+- `GET /api/scenarios` - Get all saved scenarios
+- `GET /api/scenarios/:id` - Get a specific scenario
+- `POST /api/scenarios` - Create a new scenario
+- `PUT /api/scenarios/:id` - Update an existing scenario
+- `DELETE /api/scenarios/:id` - Delete a scenario
 
 ## 💡 Future Enhancements
 

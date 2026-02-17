@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, copilot/** ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install client dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Install server dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Lint client
+        working-directory: ./client
+        run: npm run lint
+
+      - name: Lint server
+        working-directory: ./server
+        run: npm run lint
+
+      - name: Test client
+        working-directory: ./client
+        run: npm test
+
+      - name: Test server
+        working-directory: ./server
+        run: npm test
+
+      - name: Build client
+        working-directory: ./client
+        run: npm run build
+
+      - name: Upload coverage reports to Codecov (optional)
+        if: matrix.node-version == '20.x'
+        uses: codecov/codecov-action@v4
+        continue-on-error: true
+        with:
+          files: ./client/coverage/lcov.info,./server/coverage/lcov.info
+          fail_ci_if_error: false
