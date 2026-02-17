@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Save, Sparkles } from 'lucide-react';
+import type { FunnelComponent, GlobalParameters, Blueprint } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
 import { ConfigPanel } from './components/ConfigPanel';
 import { MetricsPanel } from './components/MetricsPanel';
-import { FunnelComponent, GlobalParameters, Blueprint } from './types';
 import { calculateMetrics } from './utils/calculateMetrics';
 
 const API_BASE = '/api';
@@ -45,7 +45,7 @@ function App() {
     );
   };
 
-  const updateComponentProperties = (id: string, properties: Record<string, any>) => {
+  const updateComponentProperties = (id: string, properties: Record<string, number | string>) => {
     setComponents(components.map((c) => (c.id === id ? { ...c, properties } : c)));
   };
 
@@ -148,7 +148,7 @@ function App() {
   );
 }
 
-function getDefaultPropertiesForType(type: string): Record<string, any> {
+function getDefaultPropertiesForType(type: string): Record<string, number | string> {
   switch (type) {
     case 'google-ads':
       return { cpc: 2.0, budget: 4000 };

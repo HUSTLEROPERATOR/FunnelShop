@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateMetrics } from './calculateMetrics';
-import { FunnelComponent, GlobalParameters } from '../types';
+import type { FunnelComponent, GlobalParameters } from '../types';
 
 describe('calculateMetrics', () => {
   const defaultGlobalParams: GlobalParameters = {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { TrendingUp, Users, DollarSign, Target } from 'lucide-react';
-import { SimulationMetrics } from '../../types';
+import type { SimulationMetrics } from '../types';
 
 interface MetricsPanelProps {
   metrics: SimulationMetrics;

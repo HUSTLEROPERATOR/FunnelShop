@@ -1,25 +1,25 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { FunnelComponent } from '../../types';
+import type { FunnelComponent } from '../types';
 
 interface ConfigPanelProps {
   component: FunnelComponent | null;
-  onUpdate: (id: string, properties: Record<string, any>) => void;
+  onUpdate: (id: string, properties: Record<string, number | string>) => void;
   onClose: () => void;
 }
 
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({ component, onUpdate, onClose }) => {
   if (!component) return null;
 
-  const handlePropertyChange = (key: string, value: any) => {
+  const handlePropertyChange = (key: string, value: number | string) => {
     onUpdate(component.id, {
       ...component.properties,
       [key]: value,
     });
   };
 
-  const renderPropertyInput = (key: string, value: any) => {
-    const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+  const renderPropertyInput = (key: string, value: number | string) => {
+    const numValue = typeof value === 'number' ? value : parseFloat(String(value)) || 0;
     
     return (
       <div key={key} className="mb-4">
@@ -57,7 +57,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ component, onUpdate, o
       <div>
         <h4 className="text-md font-medium mb-3">Properties</h4>
         {Object.entries(component.properties).map(([key, value]) =>
-          renderPropertyInput(key, value)
+          renderPropertyInput(key, value as number | string)
         )}
       </div>
     </div>

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Layers, Play, Save } from 'lucide-react';
-import { FunnelComponent } from '../../types';
+import { Layers } from 'lucide-react';
 
 interface SidebarProps {
   onAddComponent: (type: string) => void;

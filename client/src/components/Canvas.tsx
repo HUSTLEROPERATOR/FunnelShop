@@ -1,5 +1,5 @@
 import React from 'react';
-import { FunnelComponent } from '../../types';
+import type { FunnelComponent } from '../types';
 
 interface CanvasProps {
   components: FunnelComponent[];

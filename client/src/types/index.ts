@@ -3,7 +3,7 @@ export interface FunnelComponent {
   type: string;
   name: string;
   position: { x: number; y: number };
-  properties: Record<string, any>;
+  properties: Record<string, number | string>;
 }
 
 export interface GlobalParameters {

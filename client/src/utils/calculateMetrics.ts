@@ -1,4 +1,4 @@
-import { FunnelComponent, GlobalParameters, SimulationMetrics } from '../types';
+import type { FunnelComponent, GlobalParameters, SimulationMetrics } from '../types';
 
 /**
  * Calculate simulation metrics based on funnel components and global parameters
@@ -19,47 +19,52 @@ export function calculateMetrics(
     const { type, properties } = component;
 
     switch (type) {
-      case 'google-ads':
-        const cpc = properties.cpc || 2.0;
-        const budget = properties.budget || monthlyBudget * 0.4;
+      case 'google-ads': {
+        const cpc = Number(properties.cpc) || 2.0;
+        const budget = Number(properties.budget) || monthlyBudget * 0.4;
         const clicks = budget / cpc;
         visitors += clicks;
         totalCost += budget;
         break;
+      }
 
-      case 'facebook-ads':
-        const fbCpc = properties.cpc || 1.5;
-        const fbBudget = properties.budget || monthlyBudget * 0.3;
+      case 'facebook-ads': {
+        const fbCpc = Number(properties.cpc) || 1.5;
+        const fbBudget = Number(properties.budget) || monthlyBudget * 0.3;
         const fbClicks = fbBudget / fbCpc;
         visitors += fbClicks;
         totalCost += fbBudget;
         break;
+      }
 
-      case 'landing-page':
-        const lpConversion = properties.conversionRate || 0.15;
+      case 'landing-page': {
+        const lpConversion = Number(properties.conversionRate) || 0.15;
         conversionRate *= lpConversion;
         break;
+      }
 
-      case 'booking-form':
-        const bfConversion = properties.conversionRate || 0.25;
+      case 'booking-form': {
+        const bfConversion = Number(properties.conversionRate) || 0.25;
         conversionRate *= bfConversion;
         break;
+      }
 
-      case 'email-campaign':
-        const emailVisitors = properties.recipients || 1000;
-        const emailCtr = properties.clickThroughRate || 0.05;
+      case 'email-campaign': {
+        const emailVisitors = Number(properties.recipients) || 1000;
+        const emailCtr = Number(properties.clickThroughRate) || 0.05;
         visitors += emailVisitors * emailCtr;
-        const emailCost = properties.cost || 100;
+        const emailCost = Number(properties.cost) || 100;
         totalCost += emailCost;
         break;
+      }
 
       default:
         // Handle other component types with generic logic
         if (properties.conversionRate) {
-          conversionRate *= properties.conversionRate;
+          conversionRate *= Number(properties.conversionRate);
         }
         if (properties.cost) {
-          totalCost += properties.cost;
+          totalCost += Number(properties.cost);
         }
     }
   });
