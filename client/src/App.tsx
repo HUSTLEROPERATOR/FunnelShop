@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, Sparkles, Undo, Redo, AlertCircle } from 'lucide-react';
+import { Save, Sparkles, Undo, Redo, AlertCircle, Download, Upload, Trash, Settings } from 'lucide-react';
 import type { FunnelComponent, GlobalParameters, Blueprint } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
 import { ConfigPanel } from './components/ConfigPanel';
 import { MetricsPanel } from './components/MetricsPanel';
+import { GlobalParametersPanel } from './components/GlobalParametersPanel';
 import { calculateMetrics } from './utils/calculateMetrics';
 
 const API_BASE = '/api';
@@ -28,6 +29,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [showGlobalParams, setShowGlobalParams] = useState(false);
 
   const metrics = calculateMetrics(components, globalParameters);
 
@@ -167,6 +169,11 @@ function App() {
     setComponents(components.map((c) => (c.id === id ? { ...c, properties } : c)));
   };
 
+  const updateGlobalParameters = (params: GlobalParameters) => {
+    saveToHistory();
+    setGlobalParameters(params);
+  };
+
   const loadBlueprint = async (blueprintId: string) => {
     saveToHistory();
     setError(null);
@@ -187,6 +194,64 @@ function App() {
     } catch (error) {
       console.error('Failed to load blueprint:', error);
       setError('Failed to load blueprint. Please try again.');
+    }
+  };
+
+  const exportFunnel = () => {
+    const data = {
+      name: scenarioName,
+      components,
+      globalParameters,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${scenarioName.replace(/\s+/g, '_')}_funnel.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const importFunnel = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target?.result as string);
+            if (data.components && data.globalParameters) {
+              saveToHistory();
+              setComponents(data.components);
+              setGlobalParameters(data.globalParameters);
+              setScenarioName(data.name || 'Imported Funnel');
+              setError(null);
+            } else {
+              setError('Invalid funnel file format');
+            }
+          } catch (error) {
+            console.error('Failed to import funnel:', error);
+            setError('Failed to import funnel. Please check the file format.');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  const clearCanvas = () => {
+    if (components.length === 0) return;
+    if (window.confirm('Are you sure you want to clear the canvas? This action cannot be undone.')) {
+      saveToHistory();
+      setComponents([]);
+      setSelectedComponentId(null);
     }
   };
 
@@ -222,12 +287,47 @@ function App() {
             >
               <Redo size={18} />
             </button>
+            <div className="h-6 w-px bg-gray-600"></div>
+            <button
+              onClick={importFunnel}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Import Funnel"
+            >
+              <Upload size={18} />
+            </button>
+            <button
+              onClick={exportFunnel}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Export Funnel"
+            >
+              <Download size={18} />
+            </button>
+            <button
+              onClick={clearCanvas}
+              disabled={components.length === 0}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Clear Canvas"
+            >
+              <Trash size={18} />
+            </button>
+            <button
+              onClick={() => setShowGlobalParams(!showGlobalParams)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                showGlobalParams
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+              title="Global Parameters"
+            >
+              <Settings size={18} />
+            </button>
+            <div className="h-6 w-px bg-gray-600"></div>
             <button
               onClick={() => loadBlueprint('restaurant-basic')}
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
             >
               <Sparkles size={18} />
-              Load Blueprint
+              Blueprint
             </button>
             <button
               onClick={saveScenario}
@@ -269,7 +369,13 @@ function App() {
           onMoveComponent={moveComponent}
           onDeleteComponent={deleteComponent}
         />
-        {selectedComponent && (
+        {showGlobalParams && (
+          <GlobalParametersPanel
+            parameters={globalParameters}
+            onUpdate={updateGlobalParameters}
+          />
+        )}
+        {selectedComponent && !showGlobalParams && (
           <ConfigPanel
             component={selectedComponent}
             onUpdate={updateComponentProperties}
