@@ -116,6 +116,10 @@ const FunnelComponent = ({ component, isSelected, onSelect, onRemove, onDuplicat
       </div>
       
       <div className="component-body">
+        <div className="connection-points">
+          <div className="connection-point connection-point-top" title="Input"></div>
+          <div className="connection-point connection-point-bottom" title="Output"></div>
+        </div>
         {component.type === 'SocialMediaAds' && (
           <div className="component-stats">
             <div>Platform: {component.props.platform}</div>

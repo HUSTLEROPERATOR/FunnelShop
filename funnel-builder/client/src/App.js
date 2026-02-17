@@ -8,6 +8,7 @@ import MetricsPanel from './components/MetricsPanel';
 import ScenarioManager from './components/ScenarioManager';
 import BlueprintsPanel from './components/BlueprintsPanel';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
+import ComponentStats from './components/ComponentStats';
 import { calculateMetrics } from './utils/simulationLogic';
 import './App.css';
 
@@ -205,6 +206,7 @@ function App() {
                     Clear All
                   </button>
                   <KeyboardShortcuts />
+                  <ComponentStats components={components} />
                 </div>
                 <FunnelCanvas
                   components={components}
