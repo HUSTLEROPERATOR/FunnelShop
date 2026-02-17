@@ -52,7 +52,18 @@ const FunnelCanvas = ({
           {components.length === 0 ? (
             <div className="empty-state">
               <h3>🎯 Start Building Your Funnel</h3>
-              <p>Drag components from the sidebar to create your funnel</p>
+              <p>Drag components from the sidebar to create your marketing funnel</p>
+              <div className="empty-state-features">
+                <div className="empty-state-feature">
+                  ✨ Drag & Drop components to the canvas
+                </div>
+                <div className="empty-state-feature">
+                  🎨 Configure each component's properties
+                </div>
+                <div className="empty-state-feature">
+                  📊 Watch live metrics update in real-time
+                </div>
+              </div>
             </div>
           ) : null}
         </div>

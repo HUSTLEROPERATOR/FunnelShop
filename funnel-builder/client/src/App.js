@@ -27,6 +27,8 @@ function App() {
     loyalCustomers: 0
   });
   const [activeTab, setActiveTab] = useState('builder');
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const gridSize = 20;
 
   // Calculate metrics whenever components or global params change
   useEffect(() => {
@@ -36,25 +38,44 @@ function App() {
 
   const handleDrop = useCallback((item, monitor) => {
     const delta = monitor.getDifferenceFromInitialOffset();
-    const left = Math.round(item.position.x + delta.x);
-    const top = Math.round(item.position.y + delta.y);
+    let left = Math.round(item.position.x + delta.x);
+    let top = Math.round(item.position.y + delta.y);
+    
+    // Snap to grid if enabled
+    if (snapToGrid) {
+      left = Math.round(left / gridSize) * gridSize;
+      top = Math.round(top / gridSize) * gridSize;
+    }
+    
+    // Keep components within bounds
+    left = Math.max(0, left);
+    top = Math.max(0, top);
     
     setComponents(prev => prev.map(component => 
       component.id === item.id 
         ? { ...component, position: { x: left, y: top } }
         : component
     ));
-  }, []);
+  }, [snapToGrid, gridSize]);
 
   const addComponent = useCallback((type, position) => {
+    let x = position.x;
+    let y = position.y;
+    
+    // Snap to grid if enabled
+    if (snapToGrid) {
+      x = Math.round(x / gridSize) * gridSize;
+      y = Math.round(y / gridSize) * gridSize;
+    }
+    
     const newComponent = {
       id: `${type}-${Date.now()}`,
       type,
-      position,
+      position: { x, y },
       props: getDefaultProps(type)
     };
     setComponents(prev => [...prev, newComponent]);
-  }, []);
+  }, [snapToGrid, gridSize]);
 
   const updateComponentProps = useCallback((componentId, newProps) => {
     setComponents(prev => prev.map(component =>
@@ -112,14 +133,35 @@ function App() {
           {activeTab === 'builder' && (
             <>
               <ComponentSidebar />
-              <FunnelCanvas
-                components={components}
-                selectedComponent={selectedComponent}
-                onSelectComponent={setSelectedComponent}
-                onDrop={handleDrop}
-                onAddComponent={addComponent}
-                onRemoveComponent={removeComponent}
-              />
+              <div className="canvas-container">
+                <div className="canvas-toolbar">
+                  <label className="toolbar-item">
+                    <input
+                      type="checkbox"
+                      checked={snapToGrid}
+                      onChange={(e) => setSnapToGrid(e.target.checked)}
+                    />
+                    <span>Snap to Grid</span>
+                  </label>
+                  <div className="toolbar-divider"></div>
+                  <button 
+                    className="toolbar-button"
+                    onClick={clearCanvas}
+                    disabled={components.length === 0}
+                    title="Clear Canvas"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <FunnelCanvas
+                  components={components}
+                  selectedComponent={selectedComponent}
+                  onSelectComponent={setSelectedComponent}
+                  onDrop={handleDrop}
+                  onAddComponent={addComponent}
+                  onRemoveComponent={removeComponent}
+                />
+              </div>
               <div className="right-panel">
                 <ConfigurationPanel
                   selectedComponent={selectedComponent}

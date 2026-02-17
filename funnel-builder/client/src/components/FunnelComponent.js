@@ -55,26 +55,41 @@ const FunnelComponent = ({ component, isSelected, onSelect, onRemove }) => {
     return colorMap[type] || '#6b7280';
   };
 
+  const getComponentColorDark = (type) => {
+    const colorMap = {
+      SocialMediaAds: '#145dbf',
+      GoogleAds: '#3367d6',
+      LandingPage: '#d4511f',
+      EmailSequence: '#10b981',
+      BookingSystem: '#7c3aed',
+      RetargetingAds: '#d97706'
+    };
+    return colorMap[type] || '#4a5568';
+  };
+
   const Icon = getIcon(component.type);
   const displayName = getDisplayName(component.type);
   const color = getComponentColor(component.type);
+  const colorDark = getComponentColorDark(component.type);
 
   return (
     <div
       ref={drag}
-      className={`funnel-component ${isSelected ? 'selected' : ''}`}
+      className={`funnel-component ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
       style={{
         left: component.position.x,
         top: component.position.y,
-        opacity: isDragging ? 0.5 : 1,
-        borderColor: color
+        opacity: isDragging ? 0.7 : 1,
+        borderColor: color,
+        '--component-color': color,
+        '--component-color-dark': colorDark
       }}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
       }}
     >
-      <div className="component-header" style={{ backgroundColor: color }}>
+      <div className="component-header">
         <Icon size={16} color="white" />
         <span className="component-title">{displayName}</span>
         <button
