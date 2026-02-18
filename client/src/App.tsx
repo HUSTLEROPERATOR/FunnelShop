@@ -28,6 +28,22 @@ function App() {
 
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
 
+  // Define callbacks before useEffect that uses them
+  const deleteComponent = useCallback((id: string) => {
+    setComponents(prev => prev.filter((c) => c.id !== id));
+    setConnections(prev => prev.filter((conn) => conn.sourceId !== id && conn.targetId !== id));
+    if (selectedComponentId === id) {
+      setSelectedComponentId(null);
+    }
+  }, [selectedComponentId]);
+
+  const deleteConnection = useCallback((id: string) => {
+    setConnections(prev => prev.filter((conn) => conn.id !== id));
+    if (selectedConnectionId === id) {
+      setSelectedConnectionId(null);
+    }
+  }, [selectedConnectionId]);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -73,7 +89,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponentId, selectedConnectionId, connectionMode, components, connections, deleteComponent, deleteConnection]);
+  }, [selectedComponentId, selectedConnectionId, connectionMode, deleteComponent, deleteConnection]);
 
   const addComponent = (type: string) => {
     const newComponent: FunnelComponent = {
@@ -99,14 +115,6 @@ function App() {
     setComponents(components.map((c) => (c.id === id ? { ...c, properties } : c)));
   };
 
-  const deleteComponent = useCallback((id: string) => {
-    setComponents(components.filter((c) => c.id !== id));
-    setConnections(connections.filter((conn) => conn.sourceId !== id && conn.targetId !== id));
-    if (selectedComponentId === id) {
-      setSelectedComponentId(null);
-    }
-  }, [components, connections, selectedComponentId]);
-
   const createConnection = (sourceId: string, targetId: string) => {
     // Check if connection already exists
     const exists = connections.some(
@@ -121,13 +129,6 @@ function App() {
       setConnections([...connections, newConnection]);
     }
   };
-
-  const deleteConnection = useCallback((id: string) => {
-    setConnections(connections.filter((conn) => conn.id !== id));
-    if (selectedConnectionId === id) {
-      setSelectedConnectionId(null);
-    }
-  }, [connections, selectedConnectionId]);
 
   const saveScenario = async () => {
     setIsSaving(true);

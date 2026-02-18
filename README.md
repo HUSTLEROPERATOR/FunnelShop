@@ -55,6 +55,10 @@ The React app will open at `http://localhost:3000`.
 ```bash
 cd server
 npm install
+
+# Optional: Create a .env file (copy from .env.example)
+cp .env.example .env
+
 npm start
 ```
 
@@ -65,6 +69,21 @@ npm run dev
 ```
 
 The server will run on `http://localhost:5000`.
+
+### Environment Configuration
+
+The server supports configuration via environment variables. Create a `.env` file in the `server/` directory:
+
+```bash
+# Copy the example file
+cd server
+cp .env.example .env
+```
+
+Available configuration options:
+- `PORT` - Server port (default: 5000)
+- `NODE_ENV` - Environment mode (development/production)
+- `CORS_ORIGIN` - Allowed CORS origin (default: http://localhost:3000)
 
 ## 🧪 Testing
 
@@ -146,16 +165,42 @@ funnel-shop/
 
 ### Health Check
 - `GET /api/health` - Returns server health status
+  - Response: `{ status: 'ok', timestamp: string, uptime: number }`
 
 ### Blueprints
 - `GET /api/blueprints` - Get all available blueprint templates
+  - Response: Array of blueprint objects
+- `GET /api/blueprints/:id` - Get a specific blueprint by ID
+  - Response: Single blueprint object
+  - Returns 404 if not found
 
 ### Scenarios
 - `GET /api/scenarios` - Get all saved scenarios
+  - Response: Array of scenario objects
 - `GET /api/scenarios/:id` - Get a specific scenario
+  - Response: Single scenario object
+  - Returns 404 if not found
 - `POST /api/scenarios` - Create a new scenario
+  - Request body: `{ name, description?, components[], globalParameters }`
+  - Validates numeric fields (non-negative, rates between 0-1)
+  - Response: Created scenario with id, createdAt, updatedAt
+  - Returns 400 for validation errors
 - `PUT /api/scenarios/:id` - Update an existing scenario
+  - Request body: Same as POST (all fields optional)
+  - Validates numeric fields if provided
+  - Response: Updated scenario object
+  - Returns 404 if not found, 400 for validation errors
 - `DELETE /api/scenarios/:id` - Delete a scenario
+  - Response: 204 No Content on success
+  - Returns 404 if not found
+
+### Input Validation
+
+The API automatically validates:
+- **Numeric fields**: Must be non-negative numbers
+- **Rates/Percentages**: Must be between 0 and 1 (e.g., conversionRate, profitMargin)
+- **Required fields**: name, components, globalParameters for POST
+- Returns descriptive error messages for validation failures
 
 ## 💡 Future Enhancements
 
