@@ -24,7 +24,7 @@ function App() {
   const [scenarioName, setScenarioName] = useState('Untitled Scenario');
   const [isSaving, setIsSaving] = useState(false);
 
-  const metrics = calculateMetrics(components, globalParameters);
+  const metrics = calculateMetrics(components, globalParameters, connections);
 
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
 
