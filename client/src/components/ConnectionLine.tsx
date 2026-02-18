@@ -22,7 +22,7 @@ export const ConnectionLine: React.FC<ConnectionLineProps> = ({
   }
 
   // Calculate connection points (center-right of source to center-left of target)
-  const sourceX = sourceComponent.position.x + 150; // Component width
+  const sourceX = sourceComponent.position.x + 180; // Component width
   const sourceY = sourceComponent.position.y + 40; // Half component height
   const targetX = targetComponent.position.x;
   const targetY = targetComponent.position.y + 40;
@@ -46,7 +46,7 @@ export const ConnectionLine: React.FC<ConnectionLineProps> = ({
       <path
         d={pathD}
         fill="none"
-        stroke={isSelected ? '#3b82f6' : '#6b7280'}
+        stroke={isSelected ? '#0066ff' : '#d1d5db'}
         strokeWidth={isSelected ? '3' : '2'}
         markerEnd="url(#arrowhead)"
         style={{ pointerEvents: 'none' }}
@@ -64,7 +64,7 @@ export const ConnectionLine: React.FC<ConnectionLineProps> = ({
         >
           <polygon
             points="0 0, 10 3, 0 6"
-            fill={isSelected ? '#3b82f6' : '#6b7280'}
+            fill={isSelected ? '#0066ff' : '#d1d5db'}
           />
         </marker>
       </defs>
