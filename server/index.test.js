@@ -118,10 +118,58 @@ describe('API Endpoints', () => {
       expect(response.status).toBe(400);
     });
 
+    it('should return 400 for negative budget value', async () => {
+      const response = await request(app).post('/api/scenarios').send({
+        name: 'Test',
+        components: [{
+          id: 'test-1',
+          type: 'google-ads',
+          properties: { cpc: -5, budget: 1000 }
+        }],
+        globalParameters: { monthlyBudget: 5000 }
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('non-negative');
+    });
+
+    it('should return 400 for invalid conversion rate', async () => {
+      const response = await request(app).post('/api/scenarios').send({
+        name: 'Test',
+        components: [{
+          id: 'test-1',
+          type: 'landing-page',
+          properties: { conversionRate: 1.5 }
+        }],
+        globalParameters: { monthlyBudget: 5000 }
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('rate must be between 0 and 1');
+    });
+
     it('should return 404 for unknown routes', async () => {
       const response = await request(app).get('/api/unknown');
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/blueprints/:id', () => {
+    it('should return a specific blueprint', async () => {
+      const response = await request(app).get('/api/blueprints/restaurant-basic');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('id', 'restaurant-basic');
+      expect(response.body).toHaveProperty('name');
+      expect(response.body).toHaveProperty('components');
+    });
+
+    it('should return 404 for non-existent blueprint', async () => {
+      const response = await request(app).get('/api/blueprints/non-existent');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Blueprint not found');
     });
   });
 });

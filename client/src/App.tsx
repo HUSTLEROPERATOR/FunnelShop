@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Save, Sparkles, Link2, Trash2 } from 'lucide-react';
 import type { FunnelComponent, GlobalParameters, Blueprint, Connection } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -73,7 +73,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponentId, selectedConnectionId, connectionMode, components, connections]);
+  }, [selectedComponentId, selectedConnectionId, connectionMode, components, connections, deleteComponent, deleteConnection]);
 
   const addComponent = (type: string) => {
     const newComponent: FunnelComponent = {
@@ -99,13 +99,13 @@ function App() {
     setComponents(components.map((c) => (c.id === id ? { ...c, properties } : c)));
   };
 
-  const deleteComponent = (id: string) => {
+  const deleteComponent = useCallback((id: string) => {
     setComponents(components.filter((c) => c.id !== id));
     setConnections(connections.filter((conn) => conn.sourceId !== id && conn.targetId !== id));
     if (selectedComponentId === id) {
       setSelectedComponentId(null);
     }
-  };
+  }, [components, connections, selectedComponentId]);
 
   const createConnection = (sourceId: string, targetId: string) => {
     // Check if connection already exists
@@ -122,12 +122,12 @@ function App() {
     }
   };
 
-  const deleteConnection = (id: string) => {
+  const deleteConnection = useCallback((id: string) => {
     setConnections(connections.filter((conn) => conn.id !== id));
     if (selectedConnectionId === id) {
       setSelectedConnectionId(null);
     }
-  };
+  }, [connections, selectedConnectionId]);
 
   const saveScenario = async () => {
     setIsSaving(true);
