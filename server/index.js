@@ -252,19 +252,59 @@ app.delete('/api/scenarios/:id', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error('[ERROR]', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.path,
+    error: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+  });
+  res.status(500).json({ 
+    error: 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { details: err.message })
+  });
 });
 
 // 404 handler
 app.use((req, res) => {
+  console.log('[404]', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.path,
+  });
   res.status(404).json({ error: 'Not found' });
 });
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`
+╔════════════════════════════════════════════════════╗
+║  🚀 FunnelShop Server is running!                 ║
+╠════════════════════════════════════════════════════╣
+║  📍 URL: http://localhost:${PORT}${' '.repeat(29 - PORT.toString().length)}║
+║  🌍 Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(32 - (process.env.NODE_ENV || 'development').length)}║
+║  🔗 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}${' '.repeat(30 - (process.env.CORS_ORIGIN || 'http://localhost:3000').length)}║
+╚════════════════════════════════════════════════════╝
+  `);
 });
+
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  console.log(`\n⚠️  ${signal} received. Starting graceful shutdown...`);
+  server.close(() => {
+    console.log('✅ Server closed. Exiting process.');
+    process.exit(0);
+  });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error('❌ Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Export for testing
 module.exports = { app, server };
