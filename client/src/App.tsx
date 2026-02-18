@@ -15,6 +15,7 @@ function App() {
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [connectionMode, setConnectionMode] = useState(false);
+  const [gridEnabled, setGridEnabled] = useState(true);
   const [globalParameters, setGlobalParameters] = useState<GlobalParameters>({
     monthlyBudget: 10000,
     averageCheckSize: 50,
@@ -43,6 +44,33 @@ function App() {
       setSelectedConnectionId(null);
     }
   }, [selectedConnectionId]);
+
+  const duplicateComponent = useCallback(() => {
+    if (!selectedComponentId) return;
+    
+    const component = components.find(c => c.id === selectedComponentId);
+    if (!component) return;
+
+    const newComponent: FunnelComponent = {
+      ...component,
+      id: `${component.type}-${Date.now()}`,
+      name: `${component.name} (Copy)`,
+      position: {
+        x: component.position.x + 20,
+        y: component.position.y + 20,
+      },
+    };
+
+    setComponents(prev => [...prev, newComponent]);
+    setSelectedComponentId(newComponent.id);
+  }, [selectedComponentId, components]);
+
+  const clearAll = useCallback(() => {
+    setComponents([]);
+    setConnections([]);
+    setSelectedComponentId(null);
+    setSelectedConnectionId(null);
+  }, []);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -80,16 +108,32 @@ function App() {
         }
       }
 
-      // Ctrl/Cmd + D to duplicate (placeholder for future)
+      // G to toggle grid
+      if (e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        setGridEnabled(prev => !prev);
+      }
+
+      // Ctrl/Cmd + D to duplicate
       if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
         e.preventDefault();
-        // Future: implement duplication
+        duplicateComponent();
+      }
+
+      // Ctrl/Cmd + Shift + Delete to clear all
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Delete') {
+        e.preventDefault();
+        if (components.length > 0) {
+          if (confirm(`Are you sure you want to clear all ${components.length} components? This cannot be undone.`)) {
+            clearAll();
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponentId, selectedConnectionId, connectionMode, deleteComponent, deleteConnection]);
+  }, [selectedComponentId, selectedConnectionId, connectionMode, components.length, deleteComponent, deleteConnection, duplicateComponent, clearAll]);
 
   const addComponent = (type: string) => {
     const newComponent: FunnelComponent = {
@@ -252,6 +296,9 @@ function App() {
           onSelectConnection={setSelectedConnectionId}
           onMoveComponent={moveComponent}
           onCreateConnection={createConnection}
+          gridEnabled={gridEnabled}
+          onToggleGrid={() => setGridEnabled(!gridEnabled)}
+          onClearAll={clearAll}
         />
         {selectedComponent && (
           <ConfigPanel

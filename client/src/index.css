@@ -2,9 +2,162 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design System - CSS Variables */
+:root {
+  /* Brand Palette */
+  --color-primary: #3b82f6;
+  --color-primary-dark: #2563eb;
+  --color-primary-light: #60a5fa;
+  
+  --color-secondary: #8b5cf6;
+  --color-secondary-dark: #7c3aed;
+  --color-secondary-light: #a78bfa;
+  
+  --color-accent: #10b981;
+  --color-accent-dark: #059669;
+  --color-accent-light: #34d399;
+  
+  --color-danger: #ef4444;
+  --color-danger-dark: #dc2626;
+  
+  --color-warning: #f59e0b;
+  --color-warning-dark: #d97706;
+  
+  /* Component Type Colors */
+  --color-google-ads: #4285f4;
+  --color-google-ads-dark: #1967d2;
+  
+  --color-facebook-ads: #1877f2;
+  --color-facebook-ads-dark: #0d5bbc;
+  
+  --color-landing-page: #10b981;
+  --color-landing-page-dark: #059669;
+  
+  --color-booking-form: #8b5cf6;
+  --color-booking-form-dark: #7c3aed;
+  
+  --color-email-campaign: #f59e0b;
+  --color-email-campaign-dark: #d97706;
+  
+  /* Neutrals */
+  --color-bg-darker: #0f172a;
+  --color-bg-dark: #1e293b;
+  --color-bg-medium: #334155;
+  --color-bg-light: #475569;
+  
+  --color-border-dark: #1e293b;
+  --color-border-medium: #334155;
+  --color-border-light: #475569;
+  
+  /* Shadow Depths */
+  --shadow-idle: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(59, 130, 246, 0.15);
+  --shadow-drag: 0 12px 28px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(59, 130, 246, 0.25);
+  
+  /* Animations */
+  --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+}
+
 body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+}
+
+/* Smooth transitions for performance */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Canvas Node States */
+.canvas-node-idle {
+  box-shadow: var(--shadow-idle);
+  transform: translateY(0) scale(1);
+  transition: transform var(--duration-normal) var(--transition-smooth),
+              box-shadow var(--duration-normal) var(--transition-smooth),
+              opacity var(--duration-fast) var(--transition-smooth);
+}
+
+.canvas-node-idle:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.canvas-node-selected {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px) scale(1.01);
+  transition: transform var(--duration-normal) var(--transition-smooth),
+              box-shadow var(--duration-normal) var(--transition-smooth);
+}
+
+.canvas-node-connecting {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(16, 185, 129, 0.3);
+  animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Connection Points */
+.canvas-node-connection-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border: 2px solid white;
+  border-radius: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--transition-smooth);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.canvas-node-connection-point.top {
+  top: -6px;
+}
+
+.canvas-node-connection-point.bottom {
+  bottom: -6px;
+}
+
+.canvas-node-idle:hover .canvas-node-connection-point,
+.canvas-node-selected .canvas-node-connection-point,
+.canvas-node-connecting .canvas-node-connection-point {
+  opacity: 1;
+}
+
+/* Canvas Drop Zone Highlight */
+.canvas-drop-zone-active {
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  background-color: rgba(16, 185, 129, 0.02);
+}
+
+/* Animations */
+@keyframes pulse-green {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(16, 185, 129, 0.6);
+  }
+}
+
+/* Sidebar Component Cards */
+.sidebar-component-card {
+  box-shadow: var(--shadow-idle);
+  transform: translateY(0) scale(1);
+  transition: transform var(--duration-normal) var(--transition-smooth),
+              box-shadow var(--duration-normal) var(--transition-smooth);
+}
+
+.sidebar-component-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.sidebar-component-card:active {
+  transform: translateY(0) scale(0.98);
 }
 
