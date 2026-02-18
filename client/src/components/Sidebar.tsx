@@ -6,11 +6,11 @@ interface SidebarProps {
 }
 
 const componentTypes = [
-  { type: 'google-ads', name: 'Google Ads', icon: '🎯' },
-  { type: 'facebook-ads', name: 'Facebook Ads', icon: '📘' },
-  { type: 'landing-page', name: 'Landing Page', icon: '📄' },
-  { type: 'booking-form', name: 'Booking Form', icon: '📝' },
-  { type: 'email-campaign', name: 'Email Campaign', icon: '📧' },
+  { type: 'google-ads', name: 'Google Ads', icon: '🎯', color: 'var(--color-google-ads)' },
+  { type: 'facebook-ads', name: 'Facebook Ads', icon: '📘', color: 'var(--color-facebook-ads)' },
+  { type: 'landing-page', name: 'Landing Page', icon: '📄', color: 'var(--color-landing-page)' },
+  { type: 'booking-form', name: 'Booking Form', icon: '📝', color: 'var(--color-booking-form)' },
+  { type: 'email-campaign', name: 'Email Campaign', icon: '📧', color: 'var(--color-email-campaign)' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onAddComponent }) => {
@@ -26,7 +26,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddComponent }) => {
           <button
             key={component.type}
             onClick={() => onAddComponent(component.type)}
-            className="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition-colors flex items-center gap-3"
+            className="sidebar-component-card w-full p-3 rounded-lg text-left transition-all flex items-center gap-3"
+            style={{
+              background: `linear-gradient(135deg, ${component.color}20 0%, ${component.color}10 100%)`,
+              borderLeft: `3px solid ${component.color}`,
+            }}
           >
             <span className="text-2xl">{component.icon}</span>
             <span>{component.name}</span>

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { FunnelComponent, Connection } from '../types';
 import { ConnectionLine } from './ConnectionLine';
+import { CanvasNode } from './CanvasNode';
+import { CanvasToolbar } from './CanvasToolbar';
 
 interface CanvasProps {
   components: FunnelComponent[];
@@ -12,6 +14,9 @@ interface CanvasProps {
   onSelectConnection: (id: string) => void;
   onMoveComponent: (id: string, x: number, y: number) => void;
   onCreateConnection: (sourceId: string, targetId: string) => void;
+  gridEnabled: boolean;
+  onToggleGrid: () => void;
+  onClearAll: () => void;
 }
 
 export const Canvas: React.FC<CanvasProps> = ({
@@ -24,30 +29,59 @@ export const Canvas: React.FC<CanvasProps> = ({
   onSelectConnection,
   onMoveComponent,
   onCreateConnection,
+  gridEnabled,
+  onToggleGrid,
+  onClearAll,
 }) => {
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
-  const handleDragStart = (e: React.DragEvent, id: string) => {
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  const snapToGrid = useCallback((value: number) => {
+    if (!gridEnabled) return value;
+    const gridSize = 20;
+    return Math.round(value / gridSize) * gridSize;
+  }, [gridEnabled]);
+
+  const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('componentId', id);
-  };
+    setDraggingId(id);
+  }, []);
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDragEnd = useCallback(() => {
+    setDraggingId(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    setIsDraggingOver(false);
     const componentId = e.dataTransfer.getData('componentId');
     if (componentId) {
       const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left - 75; // Center the component (150px width / 2)
-      const y = e.clientY - rect.top - 40; // Center the component (80px height / 2)
+      const rawX = e.clientX - rect.left - 75; // Center the component (150px width / 2)
+      const rawY = e.clientY - rect.top - 40; // Center the component (80px height / 2)
+      const x = snapToGrid(Math.max(0, rawX));
+      const y = snapToGrid(Math.max(0, rawY));
       onMoveComponent(componentId, x, y);
     }
-  };
+    setDraggingId(null);
+  }, [snapToGrid, onMoveComponent]);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-  };
+    setIsDraggingOver(true);
+  }, []);
 
-  const handleComponentClick = (e: React.MouseEvent, componentId: string) => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only set false if we're actually leaving the canvas
+    if (e.currentTarget === e.target) {
+      setIsDraggingOver(false);
+    }
+  }, []);
+
+  const handleComponentClick = useCallback((e: React.MouseEvent, componentId: string) => {
     e.stopPropagation();
     
     if (connectionMode) {
@@ -60,9 +94,9 @@ export const Canvas: React.FC<CanvasProps> = ({
     } else {
       onSelectComponent(componentId);
     }
-  };
+  }, [connectionMode, connectingFrom, onCreateConnection, onSelectComponent]);
 
-  const handleCanvasClick = () => {
+  const handleCanvasClick = useCallback(() => {
     if (connectionMode) {
       if (connectingFrom) {
         setConnectingFrom(null);
@@ -72,20 +106,38 @@ export const Canvas: React.FC<CanvasProps> = ({
       onSelectComponent('');
       onSelectConnection('');
     }
-  };
+  }, [connectionMode, connectingFrom, onSelectComponent, onSelectConnection]);
+
+  const totalBudget = components.reduce((sum, comp) => {
+    const budget = comp.properties.budget;
+    return sum + (typeof budget === 'number' ? budget : 0);
+  }, 0);
 
   return (
     <div
-      className="flex-1 bg-gray-900 relative overflow-auto"
+      className={`flex-1 bg-gray-900 relative overflow-auto transition-all ${
+        isDraggingOver ? 'canvas-drop-zone-active' : ''
+      }`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onClick={handleCanvasClick}
       style={{
-        backgroundImage: 'radial-gradient(circle, #334155 1px, transparent 1px)',
+        backgroundImage: gridEnabled
+          ? 'radial-gradient(circle, #475569 1px, transparent 1px)'
+          : 'radial-gradient(circle, #334155 1px, transparent 1px)',
         backgroundSize: '20px 20px',
         cursor: connectionMode ? 'crosshair' : 'default',
       }}
     >
+      <CanvasToolbar
+        gridEnabled={gridEnabled}
+        onToggleGrid={onToggleGrid}
+        onClearAll={onClearAll}
+        componentCount={components.length}
+        totalBudget={totalBudget}
+      />
+
       <div className="relative min-h-full p-8">
         {/* SVG layer for connections */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
@@ -101,29 +153,18 @@ export const Canvas: React.FC<CanvasProps> = ({
         </svg>
 
         {/* Components layer */}
-        <div className="relative" style={{ zIndex: 2 }}>
+        <div className="relative" style={{ zIndex: 2 }} onDragEnd={handleDragEnd}>
           {components.map((component) => (
-            <div
+            <CanvasNode
               key={component.id}
-              draggable={!connectionMode}
-              onDragStart={(e) => handleDragStart(e, component.id)}
+              component={component}
+              isSelected={selectedId === component.id}
+              isConnecting={connectionMode && connectingFrom === component.id}
+              isDragging={draggingId === component.id}
+              connectionMode={connectionMode}
               onClick={(e) => handleComponentClick(e, component.id)}
-              className={`absolute p-4 bg-gray-700 rounded-lg border-2 transition-all ${
-                connectionMode && connectingFrom === component.id
-                  ? 'border-green-500 shadow-lg shadow-green-500/50'
-                  : selectedId === component.id
-                  ? 'border-blue-500 shadow-lg shadow-blue-500/50'
-                  : 'border-gray-600 hover:border-gray-500'
-              } ${connectionMode ? 'cursor-pointer' : 'cursor-move'}`}
-              style={{
-                left: `${component.position.x}px`,
-                top: `${component.position.y}px`,
-                minWidth: '150px',
-              }}
-            >
-              <div className="text-sm font-medium">{component.name}</div>
-              <div className="text-xs text-gray-400 mt-1">{component.type}</div>
-            </div>
+              onDragStart={(e) => handleDragStart(e, component.id)}
+            />
           ))}
         </div>
         
@@ -137,7 +178,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         )}
 
         {connectionMode && connectingFrom && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg" style={{ zIndex: 4 }}>
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse" style={{ zIndex: 4 }}>
             Click on another component to connect
           </div>
         )}
