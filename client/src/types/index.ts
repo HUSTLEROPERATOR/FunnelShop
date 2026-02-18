@@ -39,3 +39,9 @@ export interface Blueprint {
   components: FunnelComponent[];
   globalParameters: GlobalParameters;
 }
+
+export interface Connection {
+  id: string;
+  sourceId: string;
+  targetId: string;
+}

@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Save, Sparkles } from 'lucide-react';
-import type { FunnelComponent, GlobalParameters, Blueprint } from './types';
+import { useState, useEffect } from 'react';
+import { Save, Sparkles, Link2, Trash2 } from 'lucide-react';
+import type { FunnelComponent, GlobalParameters, Blueprint, Connection } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
 import { ConfigPanel } from './components/ConfigPanel';
@@ -11,7 +11,10 @@ const API_BASE = '/api';
 
 function App() {
   const [components, setComponents] = useState<FunnelComponent[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [connectionMode, setConnectionMode] = useState(false);
   const [globalParameters, setGlobalParameters] = useState<GlobalParameters>({
     monthlyBudget: 10000,
     averageCheckSize: 50,
@@ -21,9 +24,56 @@ function App() {
   const [scenarioName, setScenarioName] = useState('Untitled Scenario');
   const [isSaving, setIsSaving] = useState(false);
 
-  const metrics = calculateMetrics(components, globalParameters);
+  const metrics = calculateMetrics(components, globalParameters, connections);
 
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if focus is on an input element
+      const target = e.target as HTMLElement;
+      const isInputFocused = 
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+
+      // ESC always deselects (even when input focused)
+      if (e.key === 'Escape') {
+        setSelectedComponentId(null);
+        setSelectedConnectionId(null);
+        if (connectionMode) {
+          setConnectionMode(false);
+        }
+        return;
+      }
+
+      // Other keyboard shortcuts only work when input is not focused
+      if (isInputFocused) {
+        return;
+      }
+
+      // Delete or Backspace to delete selected item
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (selectedComponentId) {
+          deleteComponent(selectedComponentId);
+        } else if (selectedConnectionId) {
+          deleteConnection(selectedConnectionId);
+        }
+      }
+
+      // Ctrl/Cmd + D to duplicate (placeholder for future)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        // Future: implement duplication
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedComponentId, selectedConnectionId, connectionMode, components, connections]);
 
   const addComponent = (type: string) => {
     const newComponent: FunnelComponent = {
@@ -49,12 +99,43 @@ function App() {
     setComponents(components.map((c) => (c.id === id ? { ...c, properties } : c)));
   };
 
+  const deleteComponent = (id: string) => {
+    setComponents(components.filter((c) => c.id !== id));
+    setConnections(connections.filter((conn) => conn.sourceId !== id && conn.targetId !== id));
+    if (selectedComponentId === id) {
+      setSelectedComponentId(null);
+    }
+  };
+
+  const createConnection = (sourceId: string, targetId: string) => {
+    // Check if connection already exists
+    const exists = connections.some(
+      (conn) => conn.sourceId === sourceId && conn.targetId === targetId
+    );
+    if (!exists && sourceId !== targetId) {
+      const newConnection: Connection = {
+        id: `conn-${Date.now()}`,
+        sourceId,
+        targetId,
+      };
+      setConnections([...connections, newConnection]);
+    }
+  };
+
+  const deleteConnection = (id: string) => {
+    setConnections(connections.filter((conn) => conn.id !== id));
+    if (selectedConnectionId === id) {
+      setSelectedConnectionId(null);
+    }
+  };
+
   const saveScenario = async () => {
     setIsSaving(true);
     try {
       const scenario = {
         name: scenarioName,
         components,
+        connections,
         globalParameters,
       };
       const response = await fetch(`${API_BASE}/scenarios`, {
@@ -80,6 +161,7 @@ function App() {
       const blueprint = blueprints.find((b) => b.id === blueprintId);
       if (blueprint) {
         setComponents(blueprint.components);
+        setConnections([]); // Blueprints don't have connections yet
         setGlobalParameters(blueprint.globalParameters);
         setScenarioName(blueprint.name);
       }
@@ -103,6 +185,35 @@ function App() {
             />
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setConnectionMode(!connectionMode);
+                setSelectedConnectionId(null);
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                connectionMode
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-gray-600 hover:bg-gray-700'
+              }`}
+            >
+              <Link2 size={18} />
+              {connectionMode ? 'Exit Connect Mode' : 'Connect Mode'}
+            </button>
+            {(selectedComponentId || selectedConnectionId) && (
+              <button
+                onClick={() => {
+                  if (selectedComponentId) {
+                    deleteComponent(selectedComponentId);
+                  } else if (selectedConnectionId) {
+                    deleteConnection(selectedConnectionId);
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                <Trash2 size={18} />
+                Delete
+              </button>
+            )}
             <button
               onClick={() => loadBlueprint('restaurant-basic')}
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
@@ -132,9 +243,14 @@ function App() {
         <Sidebar onAddComponent={addComponent} />
         <Canvas
           components={components}
+          connections={connections}
           selectedId={selectedComponentId}
+          selectedConnectionId={selectedConnectionId}
+          connectionMode={connectionMode}
           onSelectComponent={setSelectedComponentId}
+          onSelectConnection={setSelectedConnectionId}
           onMoveComponent={moveComponent}
+          onCreateConnection={createConnection}
         />
         {selectedComponent && (
           <ConfigPanel
