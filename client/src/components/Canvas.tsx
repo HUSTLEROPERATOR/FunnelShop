@@ -33,10 +33,17 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [localConnectionMode, setLocalConnectionMode] = useState(connectionMode);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('componentId', id);
+    setDraggingId(id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -44,10 +51,11 @@ export const Canvas: React.FC<CanvasProps> = ({
     const componentId = e.dataTransfer.getData('componentId');
     if (componentId) {
       const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left - 75; // Center the component (150px width / 2)
+      const x = e.clientX - rect.left - 90; // Center the component (180px width / 2)
       const y = e.clientY - rect.top - 40; // Center the component (80px height / 2)
       onMoveComponent(componentId, x, y);
     }
+    setDraggingId(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -194,39 +202,59 @@ export const Canvas: React.FC<CanvasProps> = ({
 
           {/* Components layer */}
           <div className="relative" style={{ zIndex: 2 }}>
-            {components.map((component) => (
-              <div
-                key={component.id}
-                draggable={!localConnectionMode && !connectionMode}
-                onDragStart={(e) => handleDragStart(e, component.id)}
-                onClick={(e) => handleComponentClick(e, component.id)}
-                className={`absolute bg-white rounded-xl border-2 transition-all overflow-hidden
-                  ${(localConnectionMode || connectionMode) && connectingFrom === component.id
-                    ? 'border-green-500 shadow-lg scale-105'
-                    : selectedId === component.id
-                    ? 'border-blue-500 shadow-xl'
-                    : 'border-gray-200 hover:border-gray-300 hover:shadow-lg'
-                  } 
-                  ${(localConnectionMode || connectionMode) ? 'cursor-pointer' : 'cursor-move'}
-                `}
-                style={{
-                  left: `${component.position.x}px`,
-                  top: `${component.position.y}px`,
-                  minWidth: '180px',
-                  transform: selectedId === component.id ? 'translateY(-2px)' : 'none',
-                }}
-              >
-                {/* Gradient Header */}
-                <div className={`bg-gradient-to-r ${getComponentGradient(component.type)} px-4 py-2`}>
-                  <div className="text-sm font-semibold text-white">{component.name}</div>
+            {components.map((component) => {
+              const isSelected = selectedId === component.id;
+              const isDragging = draggingId === component.id;
+              const isHovered = hoveredId === component.id;
+              const isConnecting = (localConnectionMode || connectionMode) && connectingFrom === component.id;
+              
+              return (
+                <div
+                  key={component.id}
+                  draggable={!localConnectionMode && !connectionMode}
+                  onDragStart={(e) => handleDragStart(e, component.id)}
+                  onDragEnd={handleDragEnd}
+                  onClick={(e) => handleComponentClick(e, component.id)}
+                  onMouseEnter={() => setHoveredId(component.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  className={`node-component absolute bg-white rounded-xl border-2 overflow-hidden
+                    ${isConnecting
+                      ? 'border-green-500 shadow-lg scale-105'
+                      : isSelected
+                      ? 'border-blue-500 selected'
+                      : 'border-gray-200'
+                    } 
+                    ${isDragging ? 'dragging' : ''}
+                    ${(localConnectionMode || connectionMode) ? 'cursor-pointer' : 'cursor-move'}
+                  `}
+                  style={{
+                    left: `${component.position.x}px`,
+                    top: `${component.position.y}px`,
+                    minWidth: '180px',
+                  }}
+                >
+                  {/* Gradient Header */}
+                  <div className={`bg-gradient-to-r ${getComponentGradient(component.type)} px-4 py-2`}>
+                    <div className="text-sm font-semibold text-white">{component.name}</div>
+                  </div>
+                  
+                  {/* Body */}
+                  <div className="px-4 py-3 bg-white">
+                    <div className="text-xs text-gray-500">{component.type}</div>
+                  </div>
+                  
+                  {/* Connection Points - show on hover */}
+                  {(isHovered || isSelected || isConnecting) && (
+                    <>
+                      {/* Left connection point */}
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-blue-500 shadow-sm"></div>
+                      {/* Right connection point */}
+                      <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-blue-500 shadow-sm"></div>
+                    </>
+                  )}
                 </div>
-                
-                {/* Body */}
-                <div className="px-4 py-3 bg-white">
-                  <div className="text-xs text-gray-500">{component.type}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           
           {components.length === 0 && (
