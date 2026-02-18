@@ -4,11 +4,32 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
+
+// === CORS CONFIG ===
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+const allowedOrigins = corsOrigin
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 
 // Middleware
-app.use(cors({ origin: CORS_ORIGIN }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permette tool senza header Origin (curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+
+
 
 // Validation middleware
 const validateScenarioData = (req, res, next) => {
@@ -277,15 +298,11 @@ app.use((req, res) => {
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════════════╗
-║  🚀 FunnelShop Server is running!                 ║
-╠════════════════════════════════════════════════════╣
-║  📍 URL: http://localhost:${PORT}${' '.repeat(29 - PORT.toString().length)}║
-║  🌍 Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(32 - (process.env.NODE_ENV || 'development').length)}║
-║  🔗 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}${' '.repeat(30 - (process.env.CORS_ORIGIN || 'http://localhost:3000').length)}║
-╚════════════════════════════════════════════════════╝
-  `);
+  const env = process.env.NODE_ENV || process.env.NODE_ENV || 'development';
+  console.log("🚀 FunnelShop Server is running!");
+  console.log("📍 URL:", `http://localhost:${PORT}`);
+  console.log("🌍 Environment:", env);
+  console.log("🔗 CORS Origins:", allowedOrigins.join(', '));
 });
 
 // Graceful shutdown
