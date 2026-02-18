@@ -1,12 +1,68 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
+
+// Validation middleware
+const validateScenarioData = (req, res, next) => {
+  const { components, globalParameters } = req.body;
+
+  // Validate components array
+  if (components && Array.isArray(components)) {
+    for (const comp of components) {
+      if (comp.properties) {
+        // Validate numeric properties
+        for (const [key, value] of Object.entries(comp.properties)) {
+          if (typeof value === 'number') {
+            if (isNaN(value) || value < 0) {
+              return res.status(400).json({
+                error: `Invalid ${key} in component ${comp.id}: must be a non-negative number`,
+              });
+            }
+            // Validate percentages (conversion rates, etc.)
+            if (key.toLowerCase().includes('rate') || key.toLowerCase().includes('percentage')) {
+              if (value > 1) {
+                return res.status(400).json({
+                  error: `Invalid ${key} in component ${comp.id}: rate must be between 0 and 1`,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Validate global parameters
+  if (globalParameters) {
+    const numericFields = ['monthlyBudget', 'averageCheckSize', 'customerLifetimeVisits', 'profitMargin'];
+    for (const field of numericFields) {
+      const value = globalParameters[field];
+      if (value !== undefined) {
+        if (typeof value !== 'number' || isNaN(value) || value < 0) {
+          return res.status(400).json({
+            error: `Invalid ${field}: must be a non-negative number`,
+          });
+        }
+        // Validate profit margin is a percentage
+        if (field === 'profitMargin' && value > 1) {
+          return res.status(400).json({
+            error: `Invalid profitMargin: must be between 0 and 1`,
+          });
+        }
+      }
+    }
+  }
+
+  next();
+};
 
 // In-memory storage (structured for future DB migration)
 const dataStore = {
@@ -112,6 +168,15 @@ app.get('/api/blueprints', (req, res) => {
   res.json(dataStore.blueprints);
 });
 
+// Get a specific blueprint by ID
+app.get('/api/blueprints/:id', (req, res) => {
+  const blueprint = dataStore.blueprints.find((b) => b.id === req.params.id);
+  if (!blueprint) {
+    return res.status(404).json({ error: 'Blueprint not found' });
+  }
+  res.json(blueprint);
+});
+
 // Get all scenarios
 app.get('/api/scenarios', (req, res) => {
   const scenarios = Array.from(dataStore.scenarios.values());
@@ -128,7 +193,7 @@ app.get('/api/scenarios/:id', (req, res) => {
 });
 
 // Create a new scenario
-app.post('/api/scenarios', (req, res) => {
+app.post('/api/scenarios', validateScenarioData, (req, res) => {
   const { name, description, components, globalParameters } = req.body;
 
   if (!name || !components || !globalParameters) {
@@ -153,7 +218,7 @@ app.post('/api/scenarios', (req, res) => {
 });
 
 // Update a scenario
-app.put('/api/scenarios/:id', (req, res) => {
+app.put('/api/scenarios/:id', validateScenarioData, (req, res) => {
   const scenario = dataStore.scenarios.get(req.params.id);
   if (!scenario) {
     return res.status(404).json({ error: 'Scenario not found' });
@@ -187,19 +252,59 @@ app.delete('/api/scenarios/:id', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error('[ERROR]', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.path,
+    error: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+  });
+  res.status(500).json({ 
+    error: 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { details: err.message })
+  });
 });
 
 // 404 handler
 app.use((req, res) => {
+  console.log('[404]', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.path,
+  });
   res.status(404).json({ error: 'Not found' });
 });
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`
+╔════════════════════════════════════════════════════╗
+║  🚀 FunnelShop Server is running!                 ║
+╠════════════════════════════════════════════════════╣
+║  📍 URL: http://localhost:${PORT}${' '.repeat(29 - PORT.toString().length)}║
+║  🌍 Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(32 - (process.env.NODE_ENV || 'development').length)}║
+║  🔗 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}${' '.repeat(30 - (process.env.CORS_ORIGIN || 'http://localhost:3000').length)}║
+╚════════════════════════════════════════════════════╝
+  `);
 });
+
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  console.log(`\n⚠️  ${signal} received. Starting graceful shutdown...`);
+  server.close(() => {
+    console.log('✅ Server closed. Exiting process.');
+    process.exit(0);
+  });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error('❌ Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Export for testing
 module.exports = { app, server };

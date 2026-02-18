@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Save, Sparkles, Link2, Trash2 } from 'lucide-react';
 import type { FunnelComponent, GlobalParameters, Blueprint, Connection } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -27,6 +27,22 @@ function App() {
   const metrics = calculateMetrics(components, globalParameters, connections);
 
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
+
+  // Define callbacks before useEffect that uses them
+  const deleteComponent = useCallback((id: string) => {
+    setComponents(prev => prev.filter((c) => c.id !== id));
+    setConnections(prev => prev.filter((conn) => conn.sourceId !== id && conn.targetId !== id));
+    if (selectedComponentId === id) {
+      setSelectedComponentId(null);
+    }
+  }, [selectedComponentId]);
+
+  const deleteConnection = useCallback((id: string) => {
+    setConnections(prev => prev.filter((conn) => conn.id !== id));
+    if (selectedConnectionId === id) {
+      setSelectedConnectionId(null);
+    }
+  }, [selectedConnectionId]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -73,7 +89,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponentId, selectedConnectionId, connectionMode, components, connections]);
+  }, [selectedComponentId, selectedConnectionId, connectionMode, deleteComponent, deleteConnection]);
 
   const addComponent = (type: string) => {
     const newComponent: FunnelComponent = {
@@ -99,14 +115,6 @@ function App() {
     setComponents(components.map((c) => (c.id === id ? { ...c, properties } : c)));
   };
 
-  const deleteComponent = (id: string) => {
-    setComponents(components.filter((c) => c.id !== id));
-    setConnections(connections.filter((conn) => conn.sourceId !== id && conn.targetId !== id));
-    if (selectedComponentId === id) {
-      setSelectedComponentId(null);
-    }
-  };
-
   const createConnection = (sourceId: string, targetId: string) => {
     // Check if connection already exists
     const exists = connections.some(
@@ -119,13 +127,6 @@ function App() {
         targetId,
       };
       setConnections([...connections, newConnection]);
-    }
-  };
-
-  const deleteConnection = (id: string) => {
-    setConnections(connections.filter((conn) => conn.id !== id));
-    if (selectedConnectionId === id) {
-      setSelectedConnectionId(null);
     }
   };
 
