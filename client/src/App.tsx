@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, Sparkles, Link2, Trash2 } from 'lucide-react';
+import { Save, Sparkles } from 'lucide-react';
 import type { FunnelComponent, GlobalParameters, Blueprint, Connection } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -172,87 +172,67 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Top Bar - Figma Style */}
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold">Funnel Builder</h1>
+            <h1 className="text-lg font-semibold text-gray-900">Funnel Builder</h1>
+            <div className="w-px h-6 bg-gray-300"></div>
             <input
               type="text"
               value={scenarioName}
               onChange={(e) => setScenarioName(e.target.value)}
-              className="px-3 py-1 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+              placeholder="Untitled Scenario"
+              className="px-3 py-1.5 text-sm bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-lg outline-none transition-all"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setConnectionMode(!connectionMode);
-                setSelectedConnectionId(null);
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                connectionMode
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
-            >
-              <Link2 size={18} />
-              {connectionMode ? 'Exit Connect Mode' : 'Connect Mode'}
-            </button>
-            {(selectedComponentId || selectedConnectionId) && (
-              <button
-                onClick={() => {
-                  if (selectedComponentId) {
-                    deleteComponent(selectedComponentId);
-                  } else if (selectedConnectionId) {
-                    deleteConnection(selectedConnectionId);
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-              >
-                <Trash2 size={18} />
-                Delete
-              </button>
-            )}
+          <div className="flex items-center gap-2">
             <button
               onClick={() => loadBlueprint('restaurant-basic')}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all shadow-sm hover:shadow-md"
             >
-              <Sparkles size={18} />
+              <Sparkles size={16} />
               Load Blueprint
             </button>
             <button
               onClick={saveScenario}
               disabled={isSaving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50"
             >
-              <Save size={18} />
+              <Save size={16} />
               {isSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Metrics */}
-      <div className="px-6 py-4 bg-gray-850">
-        <MetricsPanel metrics={metrics} />
-      </div>
-
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar onAddComponent={addComponent} />
-        <Canvas
-          components={components}
-          connections={connections}
-          selectedId={selectedComponentId}
-          selectedConnectionId={selectedConnectionId}
-          connectionMode={connectionMode}
-          onSelectComponent={setSelectedComponentId}
-          onSelectConnection={setSelectedConnectionId}
-          onMoveComponent={moveComponent}
-          onCreateConnection={createConnection}
-        />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Metrics Panel - Above Canvas */}
+          <div className="px-6 py-4 bg-gray-50">
+            <MetricsPanel metrics={metrics} />
+          </div>
+          
+          {/* Canvas Container */}
+          <div className="flex-1 relative overflow-hidden">
+            <Canvas
+              components={components}
+              connections={connections}
+              selectedId={selectedComponentId}
+              selectedConnectionId={selectedConnectionId}
+              connectionMode={connectionMode}
+              onSelectComponent={setSelectedComponentId}
+              onSelectConnection={setSelectedConnectionId}
+              onMoveComponent={moveComponent}
+              onCreateConnection={createConnection}
+              onDeleteComponent={deleteComponent}
+              onDeleteConnection={deleteConnection}
+            />
+          </div>
+        </div>
         {selectedComponent && (
           <ConfigPanel
             component={selectedComponent}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import type { FunnelComponent } from '../types';
+import { Card, Input } from './ui';
 
 interface ConfigPanelProps {
   component: FunnelComponent | null;
@@ -20,46 +21,47 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ component, onUpdate, o
 
   const renderPropertyInput = (key: string, value: number | string) => {
     const numValue = typeof value === 'number' ? value : parseFloat(String(value)) || 0;
+    const label = key.replace(/([A-Z])/g, ' $1').trim();
+    const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
     
     return (
       <div key={key} className="mb-4">
-        <label className="block text-sm font-medium mb-2 capitalize">
-          {key.replace(/([A-Z])/g, ' $1').trim()}
-        </label>
-        <input
+        <Input
           type="number"
           value={numValue}
           onChange={(e) => handlePropertyChange(key, parseFloat(e.target.value))}
           step={key.includes('Rate') ? '0.01' : '1'}
-          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+          label={formattedLabel}
         />
       </div>
     );
   };
 
   return (
-    <div className="w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold">Configuration</h2>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-gray-700 rounded transition-colors"
-        >
-          <X size={20} />
-        </button>
-      </div>
+    <div className="w-80 bg-gray-50 border-l border-gray-200 p-4 overflow-y-auto">
+      <Card className="shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-900">Configuration</h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <X size={18} className="text-gray-500" />
+          </button>
+        </div>
 
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-2">{component.name}</h3>
-        <p className="text-sm text-gray-400">Type: {component.type}</p>
-      </div>
+        <div className="mb-6 pb-4 border-b border-gray-200">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">{component.name}</h3>
+          <p className="text-xs text-gray-500">Type: {component.type}</p>
+        </div>
 
-      <div>
-        <h4 className="text-md font-medium mb-3">Properties</h4>
-        {Object.entries(component.properties).map(([key, value]) =>
-          renderPropertyInput(key, value as number | string)
-        )}
-      </div>
+        <div>
+          <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3">Properties</h4>
+          {Object.entries(component.properties).map(([key, value]) =>
+            renderPropertyInput(key, value as number | string)
+          )}
+        </div>
+      </Card>
     </div>
   );
 };
