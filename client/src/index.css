@@ -2,9 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Primary Color Palette */
+  --color-primary: #3b82f6;
+  --color-primary-dark: #2563eb;
+  --color-primary-light: #60a5fa;
+  
+  /* Secondary Colors */
+  --color-secondary: #8b5cf6;
+  --color-secondary-dark: #7c3aed;
+  --color-secondary-light: #a78bfa;
+  
+  /* Accent Colors */
+  --color-accent: #10b981;
+  --color-accent-dark: #059669;
+  --color-accent-light: #34d399;
+  
+  /* Neutrals */
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #334155;
+  --color-bg-elevated: #475569;
+  
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  
+  --color-border: #475569;
+  --color-border-light: #64748b;
+  
+  /* Component Type Colors */
+  --component-google-ads: #ea4335;
+  --component-google-ads-dark: #c5221f;
+  --component-facebook-ads: #1877f2;
+  --component-facebook-ads-dark: #0c63d4;
+  --component-landing-page: #8b5cf6;
+  --component-landing-page-dark: #7c3aed;
+  --component-booking-form: #10b981;
+  --component-booking-form-dark: #059669;
+  --component-email-campaign: #f59e0b;
+  --component-email-campaign-dark: #d97706;
+  
+  /* Shadow Levels */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.2), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Card Shadows */
+  --shadow-idle: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  --shadow-hover: 0 10px 20px -3px rgba(0, 0, 0, 0.3), 0 4px 8px -2px rgba(0, 0, 0, 0.15);
+  --shadow-drag: 0 20px 30px -5px rgba(0, 0, 0, 0.4), 0 10px 15px -3px rgba(0, 0, 0, 0.25);
+  
+  /* Transitions */
+  --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* GPU-Accelerated Animations */
+@keyframes lift {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  to {
+    transform: translateY(-2px) scale(1.02);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+  }
+}
+
+/* Smooth Transitions */
+.transition-smooth {
+  transition: all 0.3s var(--transition-smooth);
+}
+
+.transition-spring {
+  transition: all 0.4s var(--transition-spring);
+}
+
+/* Component Card Styles */
+.component-card {
+  will-change: transform, opacity;
+  transition: transform 0.3s var(--transition-smooth), 
+              box-shadow 0.3s var(--transition-smooth),
+              opacity 0.2s ease-out;
+}
+
+.component-card:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.component-card.dragging {
+  transform: rotate(2deg);
+  opacity: 0.7;
+  box-shadow: var(--shadow-drag);
+}
+
+/* Drop Zone Highlight */
+.drop-zone-active {
+  border-color: var(--color-accent);
+  background-color: rgba(16, 185, 129, 0.05);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Connection Points */
+.connection-point {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.component-card:hover .connection-point {
+  opacity: 1;
 }
 

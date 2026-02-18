@@ -1,6 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import type { FunnelComponent } from '../types';
+import type { FunnelComponent } from '../../types';
 
 interface ConfigPanelProps {
   component: FunnelComponent | null;
