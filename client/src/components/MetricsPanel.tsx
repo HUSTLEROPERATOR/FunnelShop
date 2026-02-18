@@ -17,18 +17,18 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({ metrics }) => {
   ];
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <h2 className="text-xl font-semibold mb-4">Live Metrics</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div className="bg-gray-850/50 border border-gray-800 rounded-surface p-6 shadow-surface">
+      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-5">Live Metrics</h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {metricItems.map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon size={20} className={item.color} />
-                <span className="text-sm text-gray-400">{item.label}</span>
+            <div key={item.label} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Icon size={14} className={`${item.color} opacity-60`} />
+                <span className="text-xs text-gray-500 font-medium">{item.label}</span>
               </div>
-              <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
+              <div className={`text-2xl font-semibold ${item.color} tracking-tight`}>{item.value}</div>
             </div>
           );
         })}
