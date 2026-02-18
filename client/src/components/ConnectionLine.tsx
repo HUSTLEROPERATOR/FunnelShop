@@ -32,13 +32,15 @@ export const ConnectionLine: React.FC<ConnectionLineProps> = ({
   const pathD = `M ${sourceX} ${sourceY} Q ${midX} ${sourceY}, ${midX} ${(sourceY + targetY) / 2} T ${targetX} ${targetY}`;
 
   return (
-    <g onClick={onSelect} style={{ cursor: 'pointer' }}>
+    <g>
       {/* Invisible wider path for easier clicking */}
       <path
         d={pathD}
         fill="none"
         stroke="transparent"
         strokeWidth="20"
+        style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+        onClick={onSelect}
       />
       {/* Visible path */}
       <path
@@ -47,6 +49,7 @@ export const ConnectionLine: React.FC<ConnectionLineProps> = ({
         stroke={isSelected ? '#3b82f6' : '#6b7280'}
         strokeWidth={isSelected ? '3' : '2'}
         markerEnd="url(#arrowhead)"
+        style={{ pointerEvents: 'none' }}
       />
       {/* Arrow marker */}
       <defs>

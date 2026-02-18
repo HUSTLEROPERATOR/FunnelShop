@@ -63,8 +63,14 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleCanvasClick = () => {
-    if (connectionMode && connectingFrom) {
-      setConnectingFrom(null);
+    if (connectionMode) {
+      if (connectingFrom) {
+        setConnectingFrom(null);
+      }
+    } else {
+      // Clear selection when clicking canvas
+      onSelectComponent('');
+      onSelectConnection('');
     }
   };
 
@@ -77,22 +83,21 @@ export const Canvas: React.FC<CanvasProps> = ({
       style={{
         backgroundImage: 'radial-gradient(circle, #334155 1px, transparent 1px)',
         backgroundSize: '20px 20px',
+        cursor: connectionMode ? 'crosshair' : 'default',
       }}
     >
       <div className="relative min-h-full p-8">
         {/* SVG layer for connections */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-          <g className="pointer-events-auto">
-            {connections.map((connection) => (
-              <ConnectionLine
-                key={connection.id}
-                connection={connection}
-                components={components}
-                isSelected={selectedConnectionId === connection.id}
-                onSelect={() => onSelectConnection(connection.id)}
-              />
-            ))}
-          </g>
+          {connections.map((connection) => (
+            <ConnectionLine
+              key={connection.id}
+              connection={connection}
+              components={components}
+              isSelected={selectedConnectionId === connection.id}
+              onSelect={() => onSelectConnection(connection.id)}
+            />
+          ))}
         </svg>
 
         {/* Components layer */}

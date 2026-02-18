@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { calculateMetrics } from './calculateMetrics';
 import type { FunnelComponent, GlobalParameters, Connection } from '../types';
 
@@ -163,6 +163,51 @@ describe('calculateMetrics', () => {
   });
 
   describe('with connections', () => {
+    it('should calculate chain example correctly: 2000 * 0.15 * 0.25 = 75', () => {
+      const components: FunnelComponent[] = [
+        {
+          id: '1',
+          type: 'google-ads',
+          name: 'Google Ads',
+          position: { x: 0, y: 0 },
+          properties: {
+            cpc: 2.0,
+            budget: 4000,
+          },
+        },
+        {
+          id: '2',
+          type: 'landing-page',
+          name: 'Landing Page',
+          position: { x: 100, y: 0 },
+          properties: {
+            conversionRate: 0.15,
+          },
+        },
+        {
+          id: '3',
+          type: 'booking-form',
+          name: 'Booking Form',
+          position: { x: 200, y: 0 },
+          properties: {
+            conversionRate: 0.25,
+          },
+        },
+      ];
+
+      const connections: Connection[] = [
+        { id: 'c1', sourceId: '1', targetId: '2' },
+        { id: 'c2', sourceId: '2', targetId: '3' },
+      ];
+
+      const metrics = calculateMetrics(components, defaultGlobalParams, connections);
+      
+      expect(metrics.visitors).toBe(2000); // 4000 / 2.0
+      // Bookings: 2000 visitors -> landing page (2000 * 0.15 = 300) -> booking form (300 * 0.25 = 75)
+      expect(metrics.bookings).toBe(75);
+      expect(metrics.revenue).toBeGreaterThan(0);
+    });
+
     it('should calculate metrics using graph flow when connections exist', () => {
       const components: FunnelComponent[] = [
         {
@@ -208,7 +253,7 @@ describe('calculateMetrics', () => {
       expect(metrics.revenue).toBeGreaterThan(0);
     });
 
-    it('should handle multiple traffic sources in connected graph', () => {
+    it('should accumulate flow from multiple sources before applying conversion', () => {
       const components: FunnelComponent[] = [
         {
           id: '1',
@@ -232,8 +277,8 @@ describe('calculateMetrics', () => {
         },
         {
           id: '3',
-          type: 'landing-page',
-          name: 'Landing Page',
+          type: 'booking-form',
+          name: 'Booking Form',
           position: { x: 200, y: 50 },
           properties: {
             conversionRate: 0.2,
@@ -250,7 +295,7 @@ describe('calculateMetrics', () => {
       
       // Visitors: (2000/2.0) + (1500/1.5) = 1000 + 1000 = 2000
       expect(metrics.visitors).toBe(2000);
-      // Both sources flow to landing page, so bookings = 2000 * 0.2 = 400
+      // Both sources flow to booking form: (1000 + 1000) * 0.2 = 400
       expect(metrics.bookings).toBe(400);
     });
 
@@ -296,6 +341,64 @@ describe('calculateMetrics', () => {
       expect(metrics.visitors).toBe(2000);
       // Only the connected landing page should be used: 2000 * 0.5 = 1000
       expect(metrics.bookings).toBe(1000);
+    });
+
+    it('should detect cycles and return safe metrics with warning', () => {
+      const components: FunnelComponent[] = [
+        {
+          id: '1',
+          type: 'google-ads',
+          name: 'Google Ads',
+          position: { x: 0, y: 0 },
+          properties: {
+            cpc: 2.0,
+            budget: 4000,
+          },
+        },
+        {
+          id: '2',
+          type: 'landing-page',
+          name: 'Landing Page 1',
+          position: { x: 100, y: 0 },
+          properties: {
+            conversionRate: 0.5,
+          },
+        },
+        {
+          id: '3',
+          type: 'landing-page',
+          name: 'Landing Page 2',
+          position: { x: 200, y: 0 },
+          properties: {
+            conversionRate: 0.5,
+          },
+        },
+      ];
+
+      // Create a cycle: 1 -> 2 -> 3 -> 2
+      const connections: Connection[] = [
+        { id: 'c1', sourceId: '1', targetId: '2' },
+        { id: 'c2', sourceId: '2', targetId: '3' },
+        { id: 'c3', sourceId: '3', targetId: '2' }, // Creates cycle
+      ];
+
+      // Spy on console.warn to check if warning is logged
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const metrics = calculateMetrics(components, defaultGlobalParams, connections);
+      
+      // Should return safe default metrics
+      expect(metrics.visitors).toBe(0);
+      expect(metrics.bookings).toBe(0);
+      expect(metrics.revenue).toBe(0);
+      expect(metrics.profit).toBe(0);
+      expect(metrics.roi).toBe(0);
+      expect(metrics.loyalCustomers).toBe(0);
+      
+      // Should log warning about cycle
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Cycle detected'));
+      
+      warnSpy.mockRestore();
     });
   });
 });

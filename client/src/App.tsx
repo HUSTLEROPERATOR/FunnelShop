@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, Sparkles, Link2, Trash2 } from 'lucide-react';
 import type { FunnelComponent, GlobalParameters, Blueprint, Connection } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -27,6 +27,53 @@ function App() {
   const metrics = calculateMetrics(components, globalParameters, connections);
 
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if focus is on an input element
+      const target = e.target as HTMLElement;
+      const isInputFocused = 
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+
+      // ESC always deselects (even when input focused)
+      if (e.key === 'Escape') {
+        setSelectedComponentId(null);
+        setSelectedConnectionId(null);
+        if (connectionMode) {
+          setConnectionMode(false);
+        }
+        return;
+      }
+
+      // Other keyboard shortcuts only work when input is not focused
+      if (isInputFocused) {
+        return;
+      }
+
+      // Delete or Backspace to delete selected item
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (selectedComponentId) {
+          deleteComponent(selectedComponentId);
+        } else if (selectedConnectionId) {
+          deleteConnection(selectedConnectionId);
+        }
+      }
+
+      // Ctrl/Cmd + D to duplicate (placeholder for future)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        // Future: implement duplication
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedComponentId, selectedConnectionId, connectionMode, components, connections]);
 
   const addComponent = (type: string) => {
     const newComponent: FunnelComponent = {

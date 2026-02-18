@@ -33,23 +33,42 @@ function calculateWithConnections(
 
   // Build adjacency map for the graph
   const graph = new Map<string, string[]>();
+  const incomingEdges = new Map<string, string[]>();
   connections.forEach(conn => {
     if (!graph.has(conn.sourceId)) {
       graph.set(conn.sourceId, []);
     }
     graph.get(conn.sourceId)!.push(conn.targetId);
+    
+    if (!incomingEdges.has(conn.targetId)) {
+      incomingEdges.set(conn.targetId, []);
+    }
+    incomingEdges.get(conn.targetId)!.push(conn.sourceId);
   });
+
+  // Detect cycles using DFS
+  const hasCycle = detectCycle(graph, components);
+  if (hasCycle) {
+    console.warn('Cycle detected in funnel graph. Simulation may not be accurate.');
+    // Return safe default metrics
+    return {
+      visitors: 0,
+      bookings: 0,
+      revenue: 0,
+      profit: 0,
+      roi: 0,
+      loyalCustomers: 0,
+    };
+  }
 
   // Find source components (traffic generators with no incoming connections)
-  const hasIncoming = new Set(connections.map(c => c.targetId));
   const sourceComponents = components.filter(c => {
     const isTrafficSource = ['google-ads', 'facebook-ads', 'email-campaign'].includes(c.type);
-    return isTrafficSource && !hasIncoming.has(c.id);
+    return isTrafficSource && !incomingEdges.has(c.id);
   });
 
-  // Track visitors and conversion rates through the funnel
-  const visitorFlow = new Map<string, number>();
-  const conversionRates = new Map<string, number>();
+  // Track incoming flow per node (accumulate before applying conversion)
+  const incomingFlow = new Map<string, number>();
   let totalCost = 0;
 
   // Calculate initial traffic from sources
@@ -82,57 +101,75 @@ function calculateWithConnections(
       }
     }
 
-    visitorFlow.set(component.id, visitors);
+    incomingFlow.set(component.id, visitors);
     totalCost += cost;
   });
 
-  // Propagate visitors through the graph using BFS
-  const queue = [...sourceComponents.map(c => c.id)];
+  // Propagate visitors through the graph using topological ordering
   const visited = new Set<string>();
-
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const currentVisitors = visitorFlow.get(currentId) || 0;
-    const targets = graph.get(currentId) || [];
-
-    targets.forEach(targetId => {
-      const targetComponent = components.find(c => c.id === targetId);
-      if (!targetComponent) return;
-
-      // Apply conversion rate
-      const { type, properties } = targetComponent;
-      let conversionRate = 1.0;
-
-      if (type === 'landing-page') {
-        conversionRate = Number(properties.conversionRate) || 0.15;
-      } else if (type === 'booking-form') {
-        conversionRate = Number(properties.conversionRate) || 0.25;
-      }
-
-      const targetVisitors = currentVisitors * conversionRate;
-      visitorFlow.set(targetId, (visitorFlow.get(targetId) || 0) + targetVisitors);
-      conversionRates.set(targetId, conversionRate);
-
-      queue.push(targetId);
+  const processing = new Set<string>();
+  
+  const processNode = (nodeId: string): number => {
+    if (visited.has(nodeId)) {
+      return incomingFlow.get(nodeId) || 0;
+    }
+    
+    if (processing.has(nodeId)) {
+      // Cycle detected during traversal
+      return 0;
+    }
+    
+    processing.add(nodeId);
+    
+    // Accumulate incoming flow from all sources
+    const sources = incomingEdges.get(nodeId) || [];
+    let totalIncoming = incomingFlow.get(nodeId) || 0;
+    
+    sources.forEach(sourceId => {
+      const sourceFlow = processNode(sourceId);
+      totalIncoming += sourceFlow;
     });
-  }
+    
+    // Apply conversion rate for this node (if it has one)
+    const currentComponent = components.find(c => c.id === nodeId);
+    if (currentComponent && totalIncoming > 0) {
+      const { type, properties } = currentComponent;
+      
+      if (type === 'landing-page') {
+        const conversionRate = Number(properties.conversionRate) || 0.15;
+        totalIncoming = totalIncoming * conversionRate;
+      } else if (type === 'booking-form') {
+        const conversionRate = Number(properties.conversionRate) || 0.25;
+        totalIncoming = totalIncoming * conversionRate;
+      }
+    }
+    
+    incomingFlow.set(nodeId, totalIncoming);
+    processing.delete(nodeId);
+    visited.add(nodeId);
+    
+    return totalIncoming;
+  };
 
-  // Calculate final metrics from end components (booking forms or components with no outgoing connections)
+  // Process all nodes
+  components.forEach(component => {
+    processNode(component.id);
+  });
+
+  // Calculate final metrics from end components (components with no outgoing connections)
   const endComponents = components.filter(c => {
-    const hasOutgoing = graph.has(c.id);
-    return c.type === 'booking-form' || !hasOutgoing && visitorFlow.has(c.id);
+    const hasOutgoing = graph.has(c.id) && (graph.get(c.id)?.length || 0) > 0;
+    return !hasOutgoing && incomingFlow.has(c.id);
   });
 
   let totalBookings = 0;
   endComponents.forEach(component => {
-    const visitors = visitorFlow.get(component.id) || 0;
-    totalBookings += visitors;
+    const flow = incomingFlow.get(component.id) || 0;
+    // Flow already has conversion applied, just add it
+    totalBookings += flow;
   });
 
-  const totalVisitors = sourceComponents.reduce((sum, c) => sum + (visitorFlow.get(c.id) || 0), 0);
+  const totalVisitors = sourceComponents.reduce((sum, c) => sum + (incomingFlow.get(c.id) || 0), 0);
   const bookings = Math.round(totalBookings);
   const revenue = bookings * averageCheckSize * customerLifetimeVisits;
   const profit = revenue * profitMargin - totalCost;
@@ -147,6 +184,46 @@ function calculateWithConnections(
     roi: Math.round(roi * 100) / 100,
     loyalCustomers,
   };
+}
+
+/**
+ * Detect cycles in the graph using DFS
+ */
+function detectCycle(
+  graph: Map<string, string[]>,
+  components: FunnelComponent[]
+): boolean {
+  const visited = new Set<string>();
+  const recursionStack = new Set<string>();
+  
+  const dfs = (nodeId: string): boolean => {
+    visited.add(nodeId);
+    recursionStack.add(nodeId);
+    
+    const neighbors = graph.get(nodeId) || [];
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        if (dfs(neighbor)) {
+          return true;
+        }
+      } else if (recursionStack.has(neighbor)) {
+        return true; // Cycle detected
+      }
+    }
+    
+    recursionStack.delete(nodeId);
+    return false;
+  };
+  
+  for (const component of components) {
+    if (!visited.has(component.id)) {
+      if (dfs(component.id)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 /**
