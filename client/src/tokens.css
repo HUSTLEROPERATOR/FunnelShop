@@ -1,0 +1,132 @@
+/* ============================================================
+   Design Tokens — Figma/Linear-inspired visual system
+   ============================================================ */
+
+/* ─── Typography ─── */
+:root {
+  /* Font family */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen, Ubuntu, Cantarell, sans-serif;
+
+  /* Type scale */
+  --text-page-title: 1.25rem;    /* 20px — app title */
+  --text-section-title: 0.9375rem; /* 15px — panel headings */
+  --text-label: 0.8125rem;       /* 13px — labels, nav items */
+  --text-helper: 0.75rem;        /* 12px — secondary text */
+  --text-metric-value: 1.5rem;   /* 24px — big numbers */
+  --text-metric-label: 0.6875rem;/* 11px — metric captions */
+
+  /* Weight */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Tracking */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.01em;
+
+  /* Leading */
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+
+  /* ─── Colors ─── */
+
+  /* Neutrals (light theme) */
+  --color-bg-app: #f5f5f7;          /* very light neutral (not white) */
+  --color-bg-canvas: #edeef1;       /* canvas area */
+  --color-bg-surface: #ffffff;       /* panels, cards */
+  --color-bg-surface-raised: #f8f9fa; /* slightly raised surfaces */
+  --color-bg-control: #f0f1f3;      /* input backgrounds */
+  --color-bg-control-hover: #e8e9ec;
+
+  /* Borders */
+  --color-border: #e2e4e9;          /* default border */
+  --color-border-strong: #d1d4db;   /* emphasized border */
+  --color-border-focus: #3b82f6;    /* focus ring */
+  --color-border-muted: #eef0f2;    /* very subtle */
+
+  /* Text */
+  --color-text-primary: #111827;    /* main text */
+  --color-text-secondary: #6b7280;  /* secondary, labels */
+  --color-text-tertiary: #9ca3af;   /* muted, placeholders */
+  --color-text-on-primary: #ffffff; /* text on primary buttons */
+
+  /* Interactive */
+  --color-primary: #3b82f6;         /* primary accent */
+  --color-primary-hover: #2563eb;
+  --color-primary-subtle: #eff6ff;
+  --color-success: #22c55e;
+  --color-success-subtle: #f0fdf4;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-purple: #8b5cf6;
+  --color-purple-hover: #7c3aed;
+
+  /* Metric accent colors */
+  --color-metric-blue: #3b82f6;
+  --color-metric-green: #22c55e;
+  --color-metric-yellow: #eab308;
+  --color-metric-purple: #8b5cf6;
+  --color-metric-pink: #ec4899;
+  --color-metric-indigo: #6366f1;
+
+  /* Metric background tints */
+  --color-metric-blue-bg: #eff6ff;
+  --color-metric-green-bg: #f0fdf4;
+  --color-metric-yellow-bg: #fefce8;
+  --color-metric-purple-bg: #f5f3ff;
+  --color-metric-pink-bg: #fdf2f8;
+  --color-metric-indigo-bg: #eef2ff;
+
+  /* ─── Surfaces ─── */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  --shadow-selection: 0 0 0 2px #3b82f6, 0 0 12px rgba(59, 130, 246, 0.2);
+  --shadow-connection: 0 0 0 2px #22c55e, 0 0 12px rgba(34, 197, 94, 0.2);
+  --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  /* ─── Spacing ─── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* ─── Radii ─── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ─── Controls ─── */
+  --control-height: 40px;
+  --control-height-sm: 32px;
+  --control-radius: var(--radius-md);
+  --control-border: 1px solid var(--color-border);
+  --control-bg: var(--color-bg-control);
+
+  /* ─── Transitions ─── */
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+
+  /* ─── Canvas ─── */
+  --canvas-grid-color: rgba(0, 0, 0, 0.06);
+  --canvas-gradient-from: #edeef1;
+  --canvas-gradient-to: #e6e8ed;
+  --canvas-drop-border: rgba(34, 197, 94, 0.5);
+  --canvas-drop-glow: rgba(34, 197, 94, 0.08);
+
+  /* ─── Floating toolbar ─── */
+  --toolbar-bg: rgba(255, 255, 255, 0.82);
+  --toolbar-blur: 16px;
+  --toolbar-border: rgba(0, 0, 0, 0.06);
+  --toolbar-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.06);
+}

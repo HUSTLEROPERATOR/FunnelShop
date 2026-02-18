@@ -8,27 +8,54 @@ interface MetricsPanelProps {
 
 export const MetricsPanel: React.FC<MetricsPanelProps> = ({ metrics }) => {
   const metricItems = [
-    { label: 'Visitors', value: metrics.visitors.toLocaleString(), icon: Users, color: 'text-blue-400' },
-    { label: 'Bookings', value: metrics.bookings.toLocaleString(), icon: Target, color: 'text-green-400' },
-    { label: 'Revenue', value: `$${metrics.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-yellow-400' },
-    { label: 'Profit', value: `$${metrics.profit.toLocaleString()}`, icon: TrendingUp, color: 'text-purple-400' },
-    { label: 'ROI', value: `${metrics.roi}%`, icon: TrendingUp, color: 'text-pink-400' },
-    { label: 'Loyal Customers', value: metrics.loyalCustomers.toLocaleString(), icon: Users, color: 'text-indigo-400' },
+    { label: 'Visitors', value: metrics.visitors.toLocaleString(), icon: Users, color: 'var(--color-metric-blue)', bg: 'var(--color-metric-blue-bg)' },
+    { label: 'Bookings', value: metrics.bookings.toLocaleString(), icon: Target, color: 'var(--color-metric-green)', bg: 'var(--color-metric-green-bg)' },
+    { label: 'Revenue', value: `$${metrics.revenue.toLocaleString()}`, icon: DollarSign, color: 'var(--color-metric-yellow)', bg: 'var(--color-metric-yellow-bg)' },
+    { label: 'Profit', value: `$${metrics.profit.toLocaleString()}`, icon: TrendingUp, color: 'var(--color-metric-purple)', bg: 'var(--color-metric-purple-bg)' },
+    { label: 'ROI', value: `${metrics.roi}%`, icon: TrendingUp, color: 'var(--color-metric-pink)', bg: 'var(--color-metric-pink-bg)' },
+    { label: 'Loyal Customers', value: metrics.loyalCustomers.toLocaleString(), icon: Users, color: 'var(--color-metric-indigo)', bg: 'var(--color-metric-indigo-bg)' },
   ];
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <h2 className="text-xl font-semibold mb-4">Live Metrics</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div
+      className="surface-raised"
+      style={{ padding: 'var(--space-5)' }}
+    >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(6, 1fr)',
+          gap: 'var(--space-3)',
+        }}
+      >
         {metricItems.map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon size={20} className={item.color} />
-                <span className="text-sm text-gray-400">{item.label}</span>
+            <div
+              key={item.label}
+              style={{
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                background: item.bg,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  marginBottom: 'var(--space-2)',
+                }}
+              >
+                <Icon size={14} style={{ color: item.color, opacity: 0.7 }} />
+                <span className="text-metric-label">{item.label}</span>
               </div>
-              <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
+              <div
+                className="text-metric-value"
+                style={{ color: item.color }}
+              >
+                {item.value}
+              </div>
             </div>
           );
         })}

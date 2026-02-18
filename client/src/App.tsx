@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, Sparkles, Link2, Trash2 } from 'lucide-react';
+import { Save, Sparkles, Link2, Trash2, HelpCircle } from 'lucide-react';
 import type { FunnelComponent, GlobalParameters, Blueprint, Connection } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -49,9 +49,9 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if focus is on an input element
       const target = e.target as HTMLElement;
-      const isInputFocused = 
-        target.tagName === 'INPUT' || 
-        target.tagName === 'TEXTAREA' || 
+      const isInputFocused =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
         target.isContentEditable;
 
@@ -172,75 +172,102 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold">Funnel Builder</h1>
-            <input
-              type="text"
-              value={scenarioName}
-              onChange={(e) => setScenarioName(e.target.value)}
-              className="px-3 py-1 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-            />
-          </div>
-          <div className="flex items-center gap-3">
+    <div
+      className="h-screen flex flex-col"
+      style={{ background: 'var(--color-bg-app)', color: 'var(--color-text-primary)' }}
+    >
+      {/* ─── Top Bar ─── */}
+      <header
+        className="sticky top-0 z-50 flex items-center justify-between"
+        style={{
+          height: 56,
+          padding: '0 var(--space-6)',
+          background: 'var(--color-bg-surface)',
+          borderBottom: '1px solid var(--color-border)',
+        }}
+      >
+        {/* Left: title + scenario name */}
+        <div className="flex items-center" style={{ gap: 'var(--space-4)' }}>
+          <h1 className="text-page-title" style={{ margin: 0 }}>
+            Funnel Builder
+          </h1>
+
+          <div
+            style={{
+              width: 1,
+              height: 24,
+              background: 'var(--color-border)',
+            }}
+          />
+
+          <input
+            type="text"
+            value={scenarioName}
+            onChange={(e) => setScenarioName(e.target.value)}
+            className="control-input"
+            style={{ width: 220 }}
+          />
+        </div>
+
+        {/* Right: action buttons */}
+        <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
+          <button
+            onClick={() => {
+              setConnectionMode(!connectionMode);
+              setSelectedConnectionId(null);
+            }}
+            className={`btn ${connectionMode ? 'btn-success' : 'btn-ghost'}`}
+          >
+            <Link2 size={16} />
+            {connectionMode ? 'Exit Connect' : 'Connect'}
+          </button>
+
+          {(selectedComponentId || selectedConnectionId) && (
             <button
               onClick={() => {
-                setConnectionMode(!connectionMode);
-                setSelectedConnectionId(null);
+                if (selectedComponentId) {
+                  deleteComponent(selectedComponentId);
+                } else if (selectedConnectionId) {
+                  deleteConnection(selectedConnectionId);
+                }
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                connectionMode
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
+              className="btn btn-danger"
             >
-              <Link2 size={18} />
-              {connectionMode ? 'Exit Connect Mode' : 'Connect Mode'}
+              <Trash2 size={16} />
+              Delete
             </button>
-            {(selectedComponentId || selectedConnectionId) && (
-              <button
-                onClick={() => {
-                  if (selectedComponentId) {
-                    deleteComponent(selectedComponentId);
-                  } else if (selectedConnectionId) {
-                    deleteConnection(selectedConnectionId);
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-              >
-                <Trash2 size={18} />
-                Delete
-              </button>
-            )}
-            <button
-              onClick={() => loadBlueprint('restaurant-basic')}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
-            >
-              <Sparkles size={18} />
-              Load Blueprint
-            </button>
-            <button
-              onClick={saveScenario}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <Save size={18} />
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
+          )}
+
+          <button
+            onClick={() => loadBlueprint('restaurant-basic')}
+            className="btn btn-ghost"
+          >
+            <Sparkles size={16} />
+            Blueprint
+          </button>
+
+          <button
+            onClick={saveScenario}
+            disabled={isSaving}
+            className="btn btn-primary"
+          >
+            <Save size={16} />
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+
+          <button className="btn-icon" title="Help">
+            <HelpCircle size={18} />
+          </button>
         </div>
       </header>
 
-      {/* Metrics */}
-      <div className="px-6 py-4 bg-gray-850">
+      {/* ─── Metrics strip ─── */}
+      <div style={{ padding: 'var(--space-4) var(--space-6)' }}>
         <MetricsPanel metrics={metrics} />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* ─── Main Content ─── */}
+      <div className="flex-1 flex overflow-hidden" style={{ gap: 0 }}>
         <Sidebar onAddComponent={addComponent} />
         <Canvas
           components={components}

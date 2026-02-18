@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Box } from 'lucide-react';
 import type { FunnelComponent, Connection } from '../types';
 import { ConnectionLine } from './ConnectionLine';
 
@@ -14,6 +15,15 @@ interface CanvasProps {
   onCreateConnection: (sourceId: string, targetId: string) => void;
 }
 
+/* Map component type → small icon label for the card header */
+const typeLabels: Record<string, string> = {
+  'google-ads': 'Google Ads',
+  'facebook-ads': 'Facebook Ads',
+  'landing-page': 'Landing Page',
+  'booking-form': 'Booking Form',
+  'email-campaign': 'Email Campaign',
+};
+
 export const Canvas: React.FC<CanvasProps> = ({
   components,
   connections,
@@ -26,6 +36,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   onCreateConnection,
 }) => {
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('componentId', id);
@@ -49,7 +60,7 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const handleComponentClick = (e: React.MouseEvent, componentId: string) => {
     e.stopPropagation();
-    
+
     if (connectionMode) {
       if (connectingFrom === null) {
         setConnectingFrom(componentId);
@@ -74,21 +85,58 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
+  /* ── Compute card style based on state ── */
+  const cardStyle = (component: FunnelComponent): React.CSSProperties => {
+    const isSelected = selectedId === component.id;
+    const isConnecting = connectionMode && connectingFrom === component.id;
+
+    return {
+      position: 'absolute',
+      left: component.position.x,
+      top: component.position.y,
+      minWidth: 170,
+      padding: 'var(--space-4)',
+      background: 'var(--color-bg-surface)',
+      borderRadius: 'var(--radius-lg)',
+      border: `2px solid ${
+        isConnecting
+          ? 'var(--color-success)'
+          : isSelected
+          ? 'var(--color-primary)'
+          : 'var(--color-border)'
+      }`,
+      boxShadow: isConnecting
+        ? 'var(--shadow-connection)'
+        : isSelected
+        ? 'var(--shadow-selection)'
+        : 'var(--shadow-sm)',
+      cursor: connectionMode ? 'pointer' : 'move',
+      transition: 'border-color 150ms ease, box-shadow 150ms ease',
+    };
+  };
+
   return (
     <div
-      className="flex-1 bg-gray-900 relative overflow-auto"
+      className="flex-1 relative overflow-auto"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onClick={handleCanvasClick}
       style={{
-        backgroundImage: 'radial-gradient(circle, #334155 1px, transparent 1px)',
-        backgroundSize: '20px 20px',
+        background: 'linear-gradient(180deg, var(--canvas-gradient-from) 0%, var(--canvas-gradient-to) 100%)',
+        backgroundImage: `
+          linear-gradient(180deg, var(--canvas-gradient-from) 0%, var(--canvas-gradient-to) 100%),
+          radial-gradient(circle, var(--canvas-grid-color) 1px, transparent 1px)
+        `,
+        backgroundSize: '100% 100%, 24px 24px',
         cursor: connectionMode ? 'crosshair' : 'default',
       }}
     >
-      <div className="relative min-h-full p-8">
+      <div className="relative min-h-full" style={{ padding: 'var(--space-8)' }}>
         {/* SVG layer for connections */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ zIndex: 1 }}
+        >
           {connections.map((connection) => (
             <ConnectionLine
               key={connection.id}
@@ -108,36 +156,82 @@ export const Canvas: React.FC<CanvasProps> = ({
               draggable={!connectionMode}
               onDragStart={(e) => handleDragStart(e, component.id)}
               onClick={(e) => handleComponentClick(e, component.id)}
-              className={`absolute p-4 bg-gray-700 rounded-lg border-2 transition-all ${
-                connectionMode && connectingFrom === component.id
-                  ? 'border-green-500 shadow-lg shadow-green-500/50'
-                  : selectedId === component.id
-                  ? 'border-blue-500 shadow-lg shadow-blue-500/50'
-                  : 'border-gray-600 hover:border-gray-500'
-              } ${connectionMode ? 'cursor-pointer' : 'cursor-move'}`}
-              style={{
-                left: `${component.position.x}px`,
-                top: `${component.position.y}px`,
-                minWidth: '150px',
-              }}
+              style={cardStyle(component)}
             >
-              <div className="text-sm font-medium">{component.name}</div>
-              <div className="text-xs text-gray-400 mt-1">{component.type}</div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  marginBottom: 'var(--space-1)',
+                }}
+              >
+                <Box
+                  size={14}
+                  style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }}
+                />
+                <span
+                  className="text-label"
+                  style={{ fontWeight: 'var(--weight-semibold)' }}
+                >
+                  {component.name}
+                </span>
+              </div>
+              <div
+                className="text-helper"
+                style={{ paddingLeft: 22 }}
+              >
+                {typeLabels[component.type] || component.type}
+              </div>
             </div>
           ))}
         </div>
-        
+
+        {/* Empty state */}
         {components.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 3 }}>
-            <div className="text-center text-gray-500">
-              <p className="text-xl mb-2">Drop components here to start building your funnel</p>
-              <p className="text-sm">Click on a component from the sidebar to add it to the canvas</p>
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ zIndex: 3 }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <p
+                style={{
+                  fontSize: 'var(--text-section-title)',
+                  fontWeight: 'var(--weight-medium)',
+                  color: 'var(--color-text-tertiary)',
+                  marginBottom: 'var(--space-2)',
+                }}
+              >
+                Drop components here to start building your funnel
+              </p>
+              <p className="text-helper">
+                Click on a component from the sidebar to add it to the canvas
+              </p>
             </div>
           </div>
         )}
 
+        {/* Floating connection-mode pill */}
         {connectionMode && connectingFrom && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg" style={{ zIndex: 4 }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 4,
+              background: 'var(--toolbar-bg)',
+              backdropFilter: `blur(var(--toolbar-blur))`,
+              WebkitBackdropFilter: `blur(var(--toolbar-blur))`,
+              border: '1px solid var(--toolbar-border)',
+              boxShadow: 'var(--toolbar-shadow)',
+              borderRadius: 'var(--radius-full)',
+              padding: 'var(--space-2) var(--space-4)',
+              fontSize: 'var(--text-label)',
+              fontWeight: 'var(--weight-medium)',
+              color: 'var(--color-text-primary)',
+            }}
+          >
             Click on another component to connect
           </div>
         )}

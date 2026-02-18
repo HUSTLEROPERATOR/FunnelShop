@@ -1,37 +1,93 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, Target, Facebook, FileText, ClipboardList, Mail } from 'lucide-react';
 
 interface SidebarProps {
   onAddComponent: (type: string) => void;
 }
 
 const componentTypes = [
-  { type: 'google-ads', name: 'Google Ads', icon: '🎯' },
-  { type: 'facebook-ads', name: 'Facebook Ads', icon: '📘' },
-  { type: 'landing-page', name: 'Landing Page', icon: '📄' },
-  { type: 'booking-form', name: 'Booking Form', icon: '📝' },
-  { type: 'email-campaign', name: 'Email Campaign', icon: '📧' },
+  { type: 'google-ads', name: 'Google Ads', icon: Target },
+  { type: 'facebook-ads', name: 'Facebook Ads', icon: Facebook },
+  { type: 'landing-page', name: 'Landing Page', icon: FileText },
+  { type: 'booking-form', name: 'Booking Form', icon: ClipboardList },
+  { type: 'email-campaign', name: 'Email Campaign', icon: Mail },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onAddComponent }) => {
   return (
-    <div className="w-64 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
-      <div className="flex items-center gap-2 mb-6">
-        <Layers size={24} />
-        <h2 className="text-xl font-semibold">Components</h2>
+    <div
+      style={{
+        width: 240,
+        background: 'var(--color-bg-surface)',
+        borderRight: '1px solid var(--color-border)',
+        padding: 'var(--space-5)',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-5)',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-2)',
+        }}
+      >
+        <Layers size={16} style={{ color: 'var(--color-text-secondary)' }} />
+        <span className="text-section-title">Components</span>
       </div>
-      
-      <div className="space-y-2">
-        {componentTypes.map((component) => (
-          <button
-            key={component.type}
-            onClick={() => onAddComponent(component.type)}
-            className="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition-colors flex items-center gap-3"
-          >
-            <span className="text-2xl">{component.icon}</span>
-            <span>{component.name}</span>
-          </button>
-        ))}
+
+      {/* Component list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+        {componentTypes.map((component) => {
+          const Icon = component.icon;
+          return (
+            <button
+              key={component.type}
+              onClick={() => onAddComponent(component.type)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-3)',
+                width: '100%',
+                padding: 'var(--space-3) var(--space-3)',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                transition: 'background 120ms ease',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-label)',
+                fontWeight: 'var(--weight-medium)',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-control)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--color-bg-control)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon size={16} style={{ color: 'var(--color-text-secondary)' }} />
+              </div>
+              <span>{component.name}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
