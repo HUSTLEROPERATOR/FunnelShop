@@ -148,10 +148,69 @@ describe('API Endpoints', () => {
       expect(response.body.error).toContain('rate must be between 0 and 1');
     });
 
+    it('should return 400 for invalid globalParameters type', async () => {
+      const response = await request(app).post('/api/scenarios').send({
+        name: 'Test',
+        components: [],
+        globalParameters: { monthlyBudget: 'not-a-number' }
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('non-negative');
+    });
+
+    it('should return 400 for profitMargin greater than 1', async () => {
+      const response = await request(app).post('/api/scenarios').send({
+        name: 'Test',
+        components: [],
+        globalParameters: { monthlyBudget: 5000, profitMargin: 1.5 }
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('profitMargin');
+    });
+
     it('should return 404 for unknown routes', async () => {
       const response = await request(app).get('/api/unknown');
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('PUT /api/scenarios/:id error cases', () => {
+    it('should return 404 when updating non-existent scenario', async () => {
+      const response = await request(app)
+        .put('/api/scenarios/non-existent-id')
+        .send({ name: 'Updated' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Scenario not found');
+    });
+
+    it('should return 400 when updating with invalid profitMargin', async () => {
+      // First create a scenario
+      const createResponse = await request(app).post('/api/scenarios').send({
+        name: 'Scenario to update',
+        components: [],
+        globalParameters: { monthlyBudget: 5000, averageCheckSize: 40, customerLifetimeVisits: 3, profitMargin: 0.2 }
+      });
+      const id = createResponse.body.id;
+
+      const response = await request(app)
+        .put(`/api/scenarios/${id}`)
+        .send({ globalParameters: { monthlyBudget: 5000, profitMargin: 2.0 } });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('profitMargin');
+    });
+  });
+
+  describe('DELETE /api/scenarios/:id error cases', () => {
+    it('should return 404 when deleting non-existent scenario', async () => {
+      const response = await request(app).delete('/api/scenarios/non-existent-id');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Scenario not found');
     });
   });
 
