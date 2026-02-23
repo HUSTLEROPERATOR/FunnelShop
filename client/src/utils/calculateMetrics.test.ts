@@ -162,6 +162,82 @@ describe('calculateMetrics', () => {
     expect(metrics.loyalCustomers).toBe(expectedLoyalCustomers);
   });
 
+  it('should calculate metrics for Facebook Ads component', () => {
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'facebook-ads',
+        name: 'Facebook Ads Campaign',
+        position: { x: 0, y: 0 },
+        properties: {
+          cpc: 1.5,
+          budget: 3000,
+        },
+      },
+    ];
+
+    const metrics = calculateMetrics(components, defaultGlobalParams);
+
+    expect(metrics.visitors).toBe(2000); // 3000 / 1.5
+    expect(metrics.bookings).toBeGreaterThan(0);
+    expect(metrics.revenue).toBeGreaterThan(0);
+  });
+
+  it('should calculate metrics for email campaign component', () => {
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'email-campaign',
+        name: 'Email Campaign',
+        position: { x: 0, y: 0 },
+        properties: {
+          recipients: 2000,
+          clickThroughRate: 0.1,
+          cost: 200,
+        },
+      },
+    ];
+
+    const metrics = calculateMetrics(components, defaultGlobalParams);
+
+    expect(metrics.visitors).toBe(200); // 2000 * 0.1
+    expect(metrics.bookings).toBeGreaterThan(0);
+  });
+
+  it('should return negative profit when costs exceed revenue', () => {
+    const components: FunnelComponent[] = [
+      {
+        id: '1',
+        type: 'google-ads',
+        name: 'Expensive Ads',
+        position: { x: 0, y: 0 },
+        properties: {
+          cpc: 100.0,
+          budget: 50000,
+        },
+      },
+      {
+        id: '2',
+        type: 'booking-form',
+        name: 'Booking Form',
+        position: { x: 100, y: 0 },
+        properties: {
+          conversionRate: 0.001,
+        },
+      },
+    ];
+
+    const lowRevenueParams = {
+      ...defaultGlobalParams,
+      averageCheckSize: 1,
+      customerLifetimeVisits: 1,
+    };
+
+    const metrics = calculateMetrics(components, lowRevenueParams);
+
+    expect(metrics.profit).toBeLessThan(0);
+  });
+
   describe('with connections', () => {
     it('should calculate chain example correctly: 2000 * 0.15 * 0.25 = 75', () => {
       const components: FunnelComponent[] = [
