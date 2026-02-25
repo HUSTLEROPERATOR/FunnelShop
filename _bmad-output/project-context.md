@@ -2,7 +2,7 @@
 project_name: 'FunnelShop'
 user_name: 'Root'
 date: '2026-02-25'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality_rules']
 existing_patterns_found: 18
 ---
 
@@ -140,3 +140,35 @@ The server is **plain JavaScript (CommonJS)** while the client is **TypeScript (
 - Loyal customers = 30% of bookings — assert with `Math.round(bookings * 0.3)`, not a hardcoded value
 - Cycle detection must log `console.warn` containing `'Cycle detected'` — test with `vi.spyOn(console, 'warn')`
 - Test both `calculateMetrics` modes: with connections (graph) and without (simple aggregation)
+
+### Code Quality & Style Rules
+
+#### ESLint Configuration
+- Both client and server use ESLint v9 **flat config** format (`eslint.config.js`) — not `.eslintrc`
+- Client config: `client/eslint.config.js` — applies to `**/*.{ts,tsx}` only; extends `typescript-eslint`, `react-hooks`, and `react-refresh` recommended configs
+- Server config: `server/eslint.config.js` — plain JS rules; all Jest globals declared manually
+- Run linting: `npm run lint` from root (runs both sides via concurrently)
+
+#### Naming Conventions
+- React component files: `PascalCase.tsx` (e.g. `MetricsPanel.tsx`, `ConfigPanel.tsx`)
+- Utility files: `camelCase.ts` (e.g. `calculateMetrics.ts`)
+- Test files: same name as source + `.test.ts` / `.test.tsx` (e.g. `calculateMetrics.test.ts`)
+- Component types/IDs in data model: `kebab-case` strings (e.g. `'google-ads'`, `'booking-form'`, `'landing-page'`)
+- CSS utility classes: `kebab-case` (e.g. `.btn-primary`, `.surface-raised`, `.text-metric-label`)
+
+#### Styling System — Design Tokens First
+- All visual values (color, spacing, radius, shadow, typography) come from CSS custom properties defined in `client/src/tokens.css`
+- Apply tokens via inline `style={{ color: 'var(--color-text-primary)' }}` — not arbitrary Tailwind values
+- Tailwind is used **for layout only**: `flex`, `flex-1`, `h-screen`, `overflow-hidden`, `relative`, `absolute`, `inset-0`, `sticky`, `top-0`, `z-*`, `items-center`, `justify-*`, `grid`
+- Do **not** use Tailwind for color, spacing, typography, border-radius, or shadow — use the token variables
+- Available token namespaces: `--color-*`, `--space-*`, `--radius-*`, `--shadow-*`, `--text-*`, `--weight-*`, `--tracking-*`, `--leading-*`, `--transition-*`
+- Button variants: `.btn` base + `.btn-primary`, `.btn-ghost`, `.btn-danger`, `.btn-success`, `.btn-purple`, `.btn-icon`
+- Input fields: `.control-input` class; Surface variants: `.surface` (subtle) and `.surface-raised` (elevated)
+- Font: Inter as `--font-sans`; always applied via CSS variable, not Tailwind's `font-sans`
+- ⚠️ **v2 scale rule**: v2 introduces 8–10 net-new UI surfaces (auth pages, billing UI, workspace dashboard, PDF export template, admin screens). All must use existing token namespaces exclusively. If a new visual value is needed (new color, new spacing step, etc.), it must be added to `tokens.css` first — never inline arbitrary values or introduce new Tailwind color/spacing utilities directly in components.
+
+#### Code Organization
+- No barrel files (`index.ts` re-exports) — import directly from source files
+- Client structure: `src/components/`, `src/utils/`, `src/types/`, `src/test/`
+- No separate `routes/`, `controllers/`, or `services/` folders in v1 server — all in `index.js`
+- ⚠️ **v2 route modules**: When Winston creates v2 route modules (auth, billing, funnels, admin), the no-barrel-files rule still applies — import directly from each route file, never via an `index.js` re-export layer
