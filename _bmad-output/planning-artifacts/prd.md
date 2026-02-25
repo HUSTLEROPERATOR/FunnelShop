@@ -1,5 +1,5 @@
 ---
-stepsCompleted: []
+stepsCompleted: ['step-01-init']
 inputDocuments:
   - README.md
   - IMPROVEMENTS.md
