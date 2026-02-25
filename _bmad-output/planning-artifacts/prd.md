@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation']
 inputDocuments:
   - README.md
   - IMPROVEMENTS.md
@@ -239,5 +239,47 @@ The long-term product trajectory if the core thesis is validated:
 | Stripe webhook reliability + idempotency | Journey 3A |
 | Cancellation offboarding with reason capture | Journey 3B |
 | Usage event tracking (simulations run per user) | Journey 3B |
+
+## Innovation & Novel Patterns
+
+### Detected Innovation Areas
+
+**1. Pre-Spend Simulation — Category Creation**
+
+FunnelShop introduces a behaviour (model funnel ROI before committing ad spend) that does not currently exist as an affordable SMB product. Existing tools in the market operate post-commitment: ad platforms show performance after spend, CRM tools track conversion after leads are captured, analytics tools report after traffic is generated. FunnelShop occupies the empty upstream slot — the planning instrument that informs whether to spend at all, and how.
+
+This is not an incremental improvement on an existing category. It is a category creation opportunity in the SMB segment. The comparable analogy: financial modelling software for non-financial managers (early tools like LivePlan or Baremetrics created usage patterns that didn't previously exist).
+
+**2. Blueprint Library as Distribution Engine**
+
+Blueprints are not templates — they are pre-validated funnel strategies for specific industry contexts. A Restaurant blueprint pre-populated with industry-average CPCs, conversion rates, and booking flows reduces time-to-first-simulation for the target user (who has no modelling background) from minutes to seconds. Over time, a library of validated blueprints becomes a moat: competitors can copy the builder, but they cannot copy a curated, real-world-tested strategy library.
+
+The distribution implication: industry-specific blueprints are shareable artefacts. A marketer who discovers a "SaaS Trial Funnel" blueprint through a blog post or a Google search arrives at FunnelShop with an immediate, concrete use case. Blueprint depth drives organic acquisition.
+
+### Market Context & Competitive Landscape
+
+The SMB marketing tools market is crowded in the execution layer (ad platforms, email tools, CRMs) and empty in the planning layer. The closest approximations:
+- **Spreadsheet ROI calculators** — free, exist on marketing blogs, no interactivity, no persistence, no visual interface
+- **Enterprise marketing mix models** — exist (Nielsen, Analytic Partners), priced for Fortune 500, inaccessible to SMBs
+- **Consultant-built decks** — expensive, one-off, not interactive
+
+FunnelShop's competitive moat is not technology — it is the combination of accessibility (no modelling background required), interactivity (live simulation), and affordability (€29/mo vs €500/hr consulting).
+
+### Validation Approach
+
+The core innovation assumption to validate: **SMBs will change their pre-spend behaviour if given the right tool.**
+
+- **Leading indicator:** Time-to-first-simulation ≤5 min (measures barrier to behaviour change)
+- **Lagging indicator:** Return visits within 7 days (measures whether new behaviour becomes habit)
+- **Category validation:** Free-to-Pro conversion driven by persistence need (users who save their funnel are users who have internalised the planning behaviour)
+
+### Risk Mitigation
+
+| Risk | Likelihood | Mitigation |
+|---|---|---|
+| SMBs don't change behaviour (use tool once, never return) | Medium | Activation metric (≤5 min first sim) designed to minimise friction; return visit tracking as early warning |
+| Blueprints not detailed enough for real-world use | Medium | Validate 3 blueprints with real users before launch; collect simulation parameters from early users to calibrate defaults |
+| Category education cost too high (no one searches for "funnel simulator") | High | SEO strategy must target problem-aware queries ("marketing ROI calculator", "how to calculate ad ROI") not solution-aware |
+| Distribution dependency on content SEO is slow (6–12 months to rank) | High | Blueprint-led distribution as primary channel. Each industry blueprint is a standalone shareable URL — "Restaurant Funnel Blueprint" shared in F&B Facebook groups, WhatsApp communities, industry newsletters. Zero SEO dependency, immediate targeted distribution. Also validates the category faster than content marketing. |
 
 
