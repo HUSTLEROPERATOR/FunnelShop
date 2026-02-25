@@ -2,7 +2,8 @@
 project_name: 'FunnelShop'
 user_name: 'Root'
 date: '2026-02-25'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality_rules', 'workflow_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality_rules', 'workflow_rules', 'critical_rules']
+status: complete
 existing_patterns_found: 18
 ---
 
@@ -209,3 +210,25 @@ The server is **plain JavaScript (CommonJS)** while the client is **TypeScript (
 | `npm run lint` | Lint client (ESLint ts/tsx) + server (ESLint js) |
 | `cd client && npm run test:watch` | Vitest in watch mode |
 | `cd server && npm run test:watch` | Jest in watch mode |
+
+### Critical Don't-Miss Rules
+
+#### Things That Will Break Silently
+- Vitest and Jest cannot share globals — wrong import crashes the wrong test runner with a cryptic module error, not a clear test failure
+- ESLint v9 flat config: using `.eslintrc` format causes silent no-op linting, not an error — verify with `npm run lint` output
+- Tailwind color utilities applied directly will render but bypass the design token system — looks correct in dev, breaks theme consistency at scale
+- `calculateMetrics` without connections returns raw step totals, not graph-traversal values — wrong call site = wrong numbers with no runtime error
+
+#### v2 Migration Tripwires
+- **In-memory → PostgreSQL**: all server tests hit `dataStore` (Map) directly. They will pass against Map() and fail (or produce false positives) against Postgres without a defined DB test strategy first
+- **Auth added to routes**: all existing funnel endpoints currently have no auth. Adding middleware to some but not all creates silent security gaps — audit every route when auth lands
+- **Multi-tenancy** _(highest-severity risk in this document)_: `org_id` / `userId` scoping must be applied to EVERY data read and write, not just creation. A single missing query filter is a cross-workspace data leak with no runtime error to signal it.
+
+#### Absolute Rules (Never Break)
+- Never import Vitest in server test files
+- Never use Tailwind for color, spacing, or typography — design tokens only (`tokens.css`)
+- Never create barrel `index.ts` re-export files
+- Never commit `.env` or secrets
+- Never push to a branch other than the designated `claude/` branch
+- Never add auth middleware to selected routes only — when auth lands, ALL endpoints must be audited and covered in the same PR. Partial auth is a security gap by design, not a TODO.
+- Never write new server-side code in plain JS after the architecture decision to migrate to TypeScript — a mixed TS/JS server is harder to maintain and type-check than either pure choice. Once the migration decision is made, all new server files are `.ts`.
