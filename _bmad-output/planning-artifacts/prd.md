@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success']
 inputDocuments:
   - README.md
   - IMPROVEMENTS.md
@@ -67,5 +67,76 @@ For agencies, FunnelShop is a client-facing **credibility tool**: they walk into
 | Complexity | Low (no regulatory requirements) |
 | Project Context | Brownfield — v1 simulation engine validated, adding commercial layer |
 | Architecture Constraint | Multi-tenancy day-one |
+
+## Success Criteria
+
+### User Success
+
+- **Activation:** User completes first simulation run within 5 minutes of signup. No onboarding wizard, no required tutorial — land on canvas, drag components, hit Simulate. Time-to-first-simulation is the activation metric.
+- **Retention signal:** Pro subscriber returns to build or modify a funnel within 7 days of initial activation.
+- **Value realisation:** Pro subscriber exports at least one PDF report within first 30 days (indicates funnel used in a real business context, not just trial).
+- **Agency activation:** Agency account has ≥3 client workspaces populated with simulations within 14 days of signup.
+
+### Business Success
+
+| Milestone | Target | Key Metric |
+|---|---|---|
+| Month 3 | €500 MRR | 30 paying users (Free→Pro conversions) |
+| Month 6 | €2,000 MRR | 3 Agency accounts active |
+| Month 12 | €5,000 MRR | 150 paying users, monthly churn < 5% |
+
+**North-star metric:** Monthly Recurring Revenue (MRR). Secondary: Free-to-Pro conversion rate (target ≥8% of active Free users).
+
+### Technical Success
+
+- **Availability:** 99.5% uptime (protects paid subscriber trust; data loss on a paid plan is a cancellation trigger)
+- **Performance:** Simulation recalculation < 500ms on funnels with ≤20 components (maintains the real-time "watching metrics update" aha moment)
+- **Security:** Rate limiting on all authenticated endpoints shipped with v2 launch — multi-tenant without rate limiting is a day-one liability
+- **Data integrity:** Zero cross-tenant data leaks — user A cannot access user B's funnels under any condition
+- **Test coverage:** Maintain ≥90% server-side coverage through v2 (current baseline: 92.5%)
+
+### Measurable Outcomes
+
+- Time-to-first-simulation ≤ 5 minutes from account creation
+- Free-to-Pro conversion ≥ 8% of monthly active Free users
+- MRR: €500 @ M3 → €2,000 @ M6 → €5,000 @ M12
+- Monthly churn < 5% at 12 months
+- Simulation response time < 500ms (p95)
+- Zero critical security incidents in first 12 months
+
+## Product Scope
+
+### MVP — Minimum Viable Product
+
+The v2 MVP adds the commercial layer to the validated v1 simulation engine. Everything required to charge money and retain paying customers:
+
+- **Multi-tenant user authentication** — registration, login, JWT sessions, password reset
+- **Persistent funnel storage** — PostgreSQL-backed CRUD replacing in-memory store; funnels survive browser refresh and belong to a user
+- **Subscription billing** — Stripe integration; Free, Pro, and Agency tier enforcement; upgrade/downgrade flows
+- **Rate limiting** — per-user and per-IP limits on all API endpoints (shipped with auth, not after)
+- **Pro tier features** — unlimited funnels per user, full blueprint library access, PDF export
+- **Agency tier features** — multi-client workspace management (create/switch/manage client accounts from one login)
+- **Pre-launch hygiene** — resolve npm moderate vulnerabilities, structured logging (Winston/Pino), API versioning at `/api/v1/`
+
+### Growth Features (Post-MVP)
+
+Competitive enhancements once paying users are retained:
+
+- **White-label export** — agency-branded PDF reports (Agency tier upsell)
+- **Public API** — REST API for Agency tier; enables integrations with agency reporting tools
+- **Advanced simulation** — component interdependencies, multi-path funnels, A/B scenario comparison
+- **Blueprint marketplace** — user-submitted blueprints, industry-specific packs (restaurant, e-commerce, SaaS)
+- **Collaboration** — share funnel view-only links; comment on components
+- **Export formats** — JSON, CSV data export alongside PDF
+
+### Vision (Future)
+
+The long-term product trajectory if the core thesis is validated:
+
+- **Optimisation engine** — auto-suggest funnel parameter changes to maximise projected ROI
+- **Real data integration** — connect to Google Ads, Meta Ads to seed simulation with actual CPCs and conversion rates
+- **Real-time collaboration** — multi-user simultaneous funnel editing (Google Docs model)
+- **Predictive benchmarks** — industry-average conversion rates by sector as simulation starting points
+- **Mobile app** — lightweight simulation viewer for SMB owner client meetings
 
 
