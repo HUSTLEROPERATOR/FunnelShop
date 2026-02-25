@@ -2,7 +2,7 @@
 project_name: 'FunnelShop'
 user_name: 'Root'
 date: '2026-02-25'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality_rules', 'workflow_rules']
 existing_patterns_found: 18
 ---
 
@@ -172,3 +172,40 @@ The server is **plain JavaScript (CommonJS)** while the client is **TypeScript (
 - Client structure: `src/components/`, `src/utils/`, `src/types/`, `src/test/`
 - No separate `routes/`, `controllers/`, or `services/` folders in v1 server — all in `index.js`
 - ⚠️ **v2 route modules**: When Winston creates v2 route modules (auth, billing, funnels, admin), the no-barrel-files rule still applies — import directly from each route file, never via an `index.js` re-export layer
+
+### Development Workflow Rules
+
+#### Local Development
+- Start both services: `npm run dev` from root (uses `concurrently`)
+- Client only: `npm run dev:client` → Vite on port 3000
+- Server only: `npm run dev:server` → nodemon on port 5000
+- Install all deps: `npm run install:all` from root
+- Build: `npm run build` (client: `tsc -b && vite build`; server: no build step)
+
+#### Environment Configuration
+- Server reads env via `dotenv` — expects a `.env` file in `server/`
+- Key env vars: `PORT` (default 5000), `CORS_ORIGIN` (default `http://localhost:3000`), `NODE_ENV`
+- Server stack trace included in error responses only when `NODE_ENV === 'development'`
+- **Never commit `.env` or secrets** — root `.gitignore` covers `.env` patterns; there is no `server/.gitignore`, so the root rule is the only guard
+- ⚠️ **Security debt — verify before v2 credentials**: The BMad repo analysis flagged that `.env` may have been committed at some point. Before adding real credentials (PostgreSQL, Stripe, Resend, Sentry) for v2:
+  1. Confirm root `.gitignore` explicitly covers `server/.env` (currently covers `.env` generically — sufficient, but worth making explicit)
+  2. Run `git log --all --full-history -- "**/.env" "server/.env"` to confirm no `.env` appears in git history
+  3. If any secrets were committed, rotate all affected keys immediately before continuing
+  4. A leaked Stripe key on a public repo is an immediate financial liability — do not skip this check
+- _Verification run during context generation (2026-02-25): `git log` returned no `.env` history — clean as of this date_
+
+#### Git & Branch Strategy
+- Feature branches follow pattern: `claude/<feature>-<id>` (e.g. `claude/generate-project-context-AR6kt`)
+- Commit messages: imperative mood, present tense (e.g. `feat: add validation middleware`)
+- Run `npm run lint` and `npm test` before committing — both must pass clean
+- Server has graceful shutdown on `SIGTERM` / `SIGINT` — do not bypass with `process.exit(0)` directly
+
+#### Scripts Reference
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start client + server concurrently |
+| `npm run build` | Build client (TS + Vite); server has no build step |
+| `npm run test` | Run client (Vitest) + server (Jest) tests |
+| `npm run lint` | Lint client (ESLint ts/tsx) + server (ESLint js) |
+| `cd client && npm run test:watch` | Vitest in watch mode |
+| `cd server && npm run test:watch` | Jest in watch mode |
