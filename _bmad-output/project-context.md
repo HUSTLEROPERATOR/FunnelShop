@@ -2,7 +2,7 @@
 project_name: 'FunnelShop'
 user_name: 'Root'
 date: '2026-02-25'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules']
 existing_patterns_found: 18
 ---
 
@@ -112,3 +112,31 @@ The server is **plain JavaScript (CommonJS)** while the client is **TypeScript (
 - Rates/percentages stored and validated as decimals (0–1), never as percentages (0–100)
 - `profitMargin` must be between 0 and 1 — validated explicitly on server
 - All numeric component properties must be non-negative — validated on server
+
+### Testing Rules
+
+#### Client Testing — Vitest + React Testing Library
+- Test runner: `vitest` with `globals: true` and `environment: 'jsdom'`
+- Setup file: `client/src/test/setup.ts` — imports `@testing-library/jest-dom` for DOM matchers
+- Config: `client/vitest.config.ts` — separate from `vite.config.ts`; uses `@vitejs/plugin-react`
+- Run client tests: `cd client && npm test` (runs `vitest run` — single pass, no watch)
+- Test files: co-located with source, named `*.test.ts` or `*.test.tsx`
+- Use `import { describe, it, expect, vi }` from `vitest` — do not use `jest` globals on client
+- Use `vi.spyOn()` for spies/mocks, not `jest.spyOn()`
+- Component tests use `render` + `screen` from `@testing-library/react`
+
+#### Server Testing — Jest + Supertest
+- Test runner: `jest` with `--coverage` flag
+- Test files: co-located with source, named `*.test.js`
+- Use `require('supertest')` and `require('./index')` — CommonJS imports only
+- Always close the server in `afterAll`: `server.close(done)`
+- Test the full HTTP layer via supertest — do not unit test route handlers in isolation
+- Jest globals (`describe`, `it`, `expect`, `beforeAll`, `afterAll`, etc.) are defined in `eslint.config.js` — no import needed
+- ⚠️ **Migration-sensitive**: Current server tests hit in-memory `dataStore` directly. When PostgreSQL replaces `Map()` storage, the entire server test suite requires a database test strategy. Winston must define this in the v2 architecture (options: test containers, SQLite swap, pg mock library). Do not write new server tests against a real database without this decision being documented first.
+
+#### Cross-Cutting Testing Rules
+- Never import Vitest utilities (`vi`, `vitest`) in server test files
+- Never use `require` or Jest globals in client test files
+- Loyal customers = 30% of bookings — assert with `Math.round(bookings * 0.3)`, not a hardcoded value
+- Cycle detection must log `console.warn` containing `'Cycle detected'` — test with `vi.spyOn(console, 'warn')`
+- Test both `calculateMetrics` modes: with connections (graph) and without (simple aggregation)
