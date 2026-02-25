@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping']
 inputDocuments:
   - README.md
   - IMPROVEMENTS.md
@@ -363,4 +363,76 @@ All user data processed and stored exclusively in the EU. No US-based services f
 - **Resend transactional emails:** Minimum required templates for v2: email verification, password reset, subscription confirmation, cancellation confirmation. All templates plain-text fallback required.
 - **Cascade delete order:** Deletion must respect FK constraints. Order: simulation_results → funnels → client_workspaces → org_memberships → org → user. Wrapped in a single database transaction.
 
+## Project Scoping & Phased Development
+
+### MVP Strategy & Philosophy
+
+**MVP Approach:** Revenue MVP — ship the minimum that delivers genuine simulator value to SMB owners and validates Free→Pro conversion before expanding the product surface.
+
+**Core philosophy:** The innovation to validate is the simulator + blueprint behaviour change, not the multi-seat wrapper. Ship Free and Pro clean. Measure conversion. Unlock Agency when the signal is there.
+
+**Agency greenlight trigger:** If Free→Pro conversion exceeds 10% in Month 1, Agency tier (v2.1) is immediately prioritised.
+
+**Resource profile:** Solo developer or 2-person team. Next.js + PostgreSQL stack already in place. Schema is multi-tenant from day one — Agency becomes a billing + UI unlock, not a schema rebuild.
+
+### MVP Feature Set — v2 (Phase 1)
+
+**Tiers in scope:** Free + Pro only. Agency tier deferred to v2.1.
+
+**Core User Journeys Supported:**
+- Journey 1: SMB first simulation (Free activation, ≤5 min)
+- Journey 2: Pro simulation builder (unlimited saves, parameter control)
+- Journey 3A: Blueprint quick-start (apply industry blueprint, customise, simulate)
+- Journey 4: Funnel result interpretation (output reading, scenario comparison)
+
+**Must-Have Capabilities:**
+
+| Capability | Justification |
+|---|---|
+| Funnel simulation engine | Core product — without this nothing works |
+| Blueprint library (3 blueprints at launch) | Primary distribution and activation mechanism |
+| Free tier (3 saved funnels cap) | Acquisition and trial |
+| Pro tier (€29/mo, unlimited funnels, PDF export) | Primary revenue vehicle |
+| Stripe billing (Free→Pro upgrade, cancellation) | Revenue infrastructure |
+| Email auth (register, verify, password reset) | Access control baseline |
+| PDF export (Pro) | Key Pro differentiator; enables offline sharing |
+| GDPR self-serve account deletion | Non-negotiable for EU market |
+| Resend transactional emails | Auth and billing communication |
+| Sentry error monitoring | Operational reliability |
+| PostHog product analytics (self-hosted) | Conversion funnel visibility from day one |
+| Agency tier waitlist on pricing page | Zero-cost demand signal; warm pipeline for v2.1 |
+
+**Agency waitlist spec:** Single email capture form on the pricing page Agency card. Label: "Join the waitlist — Agency launch coming soon." Submissions stored in the database (no third-party form service). No Stripe integration. Operator notified via email (Resend) on each signup. Target: 20+ waitlist signups before v2.1 build starts.
+
+### Post-MVP Roadmap
+
+**v2.1 — Agency Tier (trigger: Free→Pro conversion >10% in Month 1)**
+
+| Feature | Notes |
+|---|---|
+| Agency tier billing (€99/mo) | Stripe product + plan addition |
+| Multi-seat management (up to 5 AMs) | Invite flow, seat enforcement |
+| Per-client workspace isolation | Schema ready day one; UI unlock |
+| White-label PDF export | Logo + brand colour on export cover |
+| Agency waitlist conversion | Email waitlist → paid invite flow |
+
+**v3 — Platform Expansion (trigger: Agency MRR >€5k)**
+
+| Feature | Notes |
+|---|---|
+| Client portal (client login, view-only) | New user role; read-only workspace access |
+| Google Ads / Meta Ads data import | Pre-populate funnel with real CPC/CTR data |
+| Saved scenario comparison (A/B view) | Multiple simulations side-by-side |
+| Blueprint submission by users | Community-contributed blueprints with curation |
+| API access (Pro+) | Headless simulation for integrators |
+
+### Scoping Risk Register
+
+| Risk | Type | Mitigation |
+|---|---|---|
+| Agency scope creep into v2 | Resource | Hard boundary: Agency is v2.1. Waitlist is the only Agency surface in v2. |
+| Blueprint quality too low for real-world use | Market | Validate 3 blueprints with 5 real users before launch; reject any blueprint with >2 min confusion time |
+| Stripe webhook complexity delays billing launch | Technical | Build and test webhook handlers in staging with Stripe CLI before any Pro gating |
+| Free→Pro conversion below 10% | Market | PostHog funnel analysis from day one identifies drop-off point; iterate on upgrade prompt placement and Pro value communication |
+| Schema multi-tenancy performance at scale | Technical | Row-level isolation with indexed `org_id` on all tenant tables; benchmark with 10k simulated rows before launch |
 
