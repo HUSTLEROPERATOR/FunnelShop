@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional', 'step-10-nonfunctional', 'step-11-polish']
 inputDocuments:
   - README.md
   - IMPROVEMENTS.md
@@ -112,11 +112,13 @@ The v2 MVP adds the commercial layer to the validated v1 simulation engine. Ever
 
 - **Multi-tenant user authentication** — registration, login, JWT sessions, password reset
 - **Persistent funnel storage** — PostgreSQL-backed CRUD replacing in-memory store; funnels survive browser refresh and belong to a user
-- **Subscription billing** — Stripe integration; Free, Pro, and Agency tier enforcement; upgrade/downgrade flows
+- **Subscription billing** — Stripe integration; Free and Pro tier enforcement; upgrade/downgrade flows
 - **Rate limiting** — per-user and per-IP limits on all API endpoints (shipped with auth, not after)
 - **Pro tier features** — unlimited funnels per user, full blueprint library access, PDF export
-- **Agency tier features** — multi-client workspace management (create/switch/manage client accounts from one login)
+- **Agency waitlist** — email capture on pricing page; demand signal for v2.1 launch
 - **Pre-launch hygiene** — resolve npm moderate vulnerabilities, structured logging (Winston/Pino), API versioning at `/api/v1/`
+
+*Agency tier (multi-client workspaces, white-label export) is deferred to v2.1 — triggered by Free→Pro conversion >10% in Month 1. Multi-tenant schema is day-one; Agency is a billing and UI unlock.*
 
 ### Growth Features (Post-MVP)
 
@@ -314,7 +316,7 @@ No client-facing roles exist in v2. No admin/super-admin role exists in v2 (oper
 
 | Tier | Price | Saved Funnels | Blueprint Access | PDF Export | Seats |
 |---|---|---|---|---|---|
-| Free | €0 | Up to 3 | None | None | 1 |
+| Free | €0 | Up to 1 | None | None | 1 |
 | Pro | €29/mo | Unlimited | Full library | Yes | 1 |
 | Agency | €99/mo | Unlimited | Full library | White-label PDF | Up to 5 (expandable) |
 
@@ -391,7 +393,7 @@ All user data processed and stored exclusively in the EU. No US-based services f
 |---|---|
 | Funnel simulation engine | Core product — without this nothing works |
 | Blueprint library (3 blueprints at launch) | Primary distribution and activation mechanism |
-| Free tier (3 saved funnels cap) | Acquisition and trial |
+| Free tier (1 saved funnel cap) | Acquisition and trial; single save forces upgrade decision |
 | Pro tier (€29/mo, unlimited funnels, PDF export) | Primary revenue vehicle |
 | Stripe billing (Free→Pro upgrade, cancellation) | Revenue infrastructure |
 | Email auth (register, verify, password reset) | Access control baseline |
@@ -497,4 +499,50 @@ All user data processed and stored exclusively in the EU. No US-based services f
 - **FR33:** A user receives transactional emails for: email verification, password reset, subscription confirmation, and cancellation confirmation
 - **FR34:** A user can manage their cookie and analytics consent preferences
 - **FR35:** A user can request permanent deletion of their account and all associated data through a self-serve interface
+
+## Non-Functional Requirements
+
+### Performance
+
+- **NFR1:** Simulation results are returned to the user within 2 seconds end-to-end; server-side computation completes within 500ms at p95 (aligns with success criteria real-time feel requirement)
+- **NFR2:** Dashboard and workspace views load within 3 seconds on a standard broadband connection
+- **NFR3:** Blueprint library renders within 2 seconds of page load
+- **NFR4:** PDF export generates and initiates download within 10 seconds
+
+### Security
+
+- **NFR5:** All data transmitted over HTTPS (TLS 1.2 minimum)
+- **NFR6:** User passwords stored using bcrypt or argon2; never in plaintext
+- **NFR7:** Stripe webhook payloads verified via signature on every inbound request
+- **NFR8:** All database queries parameterised; no dynamic SQL string construction
+- **NFR9:** Session tokens expire after 30 days; refresh tokens rotate on use
+- **NFR10:** All repository-layer queries are scoped by `org_id`; cross-tenant data access is architecturally impossible without explicit org context
+- **NFR11:** Sentry error payloads scrubbed of PII (email addresses, names) before transmission
+- **NFR26:** Rate limiting applied at the API layer — maximum 60 requests per minute per authenticated user, 10 requests per minute for unauthenticated endpoints (auth routes, waitlist signup)
+
+### Reliability
+
+- **NFR12:** Application targets 99.5% monthly uptime on Hetzner infrastructure
+- **NFR13:** Stripe webhook processing includes idempotency handling; duplicate event delivery does not create duplicate subscription state
+- **NFR14:** Daily automated database backups with point-in-time recovery capability
+
+### Scalability
+
+- **NFR15:** System handles 1,000 concurrent users without measurable performance degradation at launch
+- **NFR16:** All tenant-scoped tables indexed on `org_id` and `user_id`; queries remain sub-100ms at 100k+ funnel records
+- **NFR17:** Application layer is stateless; horizontal scaling requires no session migration
+
+### Compliance
+
+- **NFR18:** Account deletion cascade completes within 24 hours of user request (target: immediately within single transaction)
+- **NFR19:** PostHog session tracking does not initialise until explicit user consent is captured
+- **NFR20:** All user data stored and processed exclusively in EU (Hetzner Falkenstein, Germany)
+- **NFR21:** Data Processing Agreements with Stripe, Resend, and Sentry executed before first paying user
+
+### Integration Resilience
+
+- **NFR22:** Stripe payment failures surface a clear user-facing error message; no silent failures or ambiguous states
+- **NFR23:** Resend delivery failures for critical auth emails (verification, password reset) are retried automatically; failures logged in Sentry
+- **NFR24:** PostHog SDK failure does not block or degrade any user-facing functionality (fire-and-forget, non-blocking)
+- **NFR25:** Sentry SDK failure does not affect application performance or user experience
 
