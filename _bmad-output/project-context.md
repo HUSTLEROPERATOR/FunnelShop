@@ -2,7 +2,7 @@
 project_name: 'FunnelShop'
 user_name: 'Root'
 date: '2026-02-25'
-sections_completed: ['technology_stack']
+sections_completed: ['technology_stack', 'language_rules']
 existing_patterns_found: 18
 ---
 
@@ -44,4 +44,31 @@ The server is **plain JavaScript (CommonJS)** while the client is **TypeScript (
 
 ## Critical Implementation Rules
 
-_Documented after discovery phase_
+### Language-Specific Rules
+
+#### Module Systems — Critical Split
+- **Client** (`/client`): ESM — use `import`/`export` exclusively
+- **Server** (`/server`): CommonJS — use `require()`/`module.exports` exclusively
+- Never mix module systems within a package. Adding a new server file means `require()`, not `import`.
+- Server exports app for testing: `module.exports = { app, server }`
+- ⚠️ **Migration-sensitive**: The server module system must not be changed until Winston (Architect) makes the v2 TS migration decision. Do **not** add new server files using `import`/`export` until that decision is documented and approved.
+
+#### TypeScript — Client Strict Mode
+`tsconfig.app.json` has all strict flags enabled — agents must satisfy all of them:
+- `strict: true`
+- `noUnusedLocals: true` — no unused variables allowed
+- `noUnusedParameters: true` — prefix intentionally unused params with `_`
+- `erasableSyntaxOnly: true` — avoid non-erasable TS syntax (e.g. `enum`, `namespace`)
+- `noFallthroughCasesInSwitch: true`
+- `noUncheckedSideEffectImports: true`
+- `verbatimModuleSyntax: true` — use `import type` for type-only imports
+
+#### Import Conventions
+- Type-only imports use `import type { Foo }` (required by `verbatimModuleSyntax`)
+- No `.ts`/`.tsx` file extensions in import paths (bundler mode handles resolution)
+- All shared types live in `client/src/types/index.ts` — do not redeclare types inline
+
+#### Error Handling
+- Server: unused Express error handler args prefixed with `_` (e.g. `_next`)
+- ESLint rule: `no-unused-vars: ['error', { argsIgnorePattern: '^_' }]` on both sides
+- Server logs errors as structured objects with `timestamp`, `method`, `path`, `error`
