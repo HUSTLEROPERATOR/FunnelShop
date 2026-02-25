@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional']
 inputDocuments:
   - README.md
   - IMPROVEMENTS.md
@@ -435,4 +435,66 @@ All user data processed and stored exclusively in the EU. No US-based services f
 | Stripe webhook complexity delays billing launch | Technical | Build and test webhook handlers in staging with Stripe CLI before any Pro gating |
 | Free→Pro conversion below 10% | Market | PostHog funnel analysis from day one identifies drop-off point; iterate on upgrade prompt placement and Pro value communication |
 | Schema multi-tenancy performance at scale | Technical | Row-level isolation with indexed `org_id` on all tenant tables; benchmark with 10k simulated rows before launch |
+
+## Functional Requirements
+
+### User Account Management
+
+- **FR1:** A visitor can register for an account using an email address and password
+- **FR2:** A registered user can verify their email address to activate their account
+- **FR3:** A registered user can log in and out of their account
+- **FR4:** A registered user can reset their password via a link sent to their email
+- **FR5:** A registered user can update their account profile (display name, email address)
+- **FR6:** A registered user can permanently delete their account and all associated data through the product interface
+
+### Funnel Simulation
+
+- **FR7:** A user can create a new funnel simulation
+- **FR8:** A user can configure funnel input parameters (advertising budget, CPC or CPM, click-through rate, conversion rate, average order value / ARPU)
+- **FR9:** A user can run a simulation to compute output metrics (projected revenue, ROAS, CAC, LTV, payback period, leads generated, conversions)
+- **FR10:** A user can view simulation results as a visual funnel breakdown and a key metric summary
+- **FR11:** A user can save a named funnel simulation to their workspace
+- **FR12:** A user can rename or delete a saved funnel simulation
+- **FR13:** A Free user is capped at 1 saved funnel simulation
+- **FR14:** A Free user is shown an upgrade prompt when the saved funnel limit is reached
+- **FR36:** A Free user can duplicate an existing saved funnel as a new unsaved simulation
+
+### Blueprint Library
+
+- **FR15:** A user can browse the available blueprint library, filtered by industry or use case
+- **FR16:** A user can view a blueprint's description including its industry context and default parameter rationale
+- **FR17:** A user can apply a blueprint to a new simulation, pre-populating default parameter values
+- **FR18:** A user can customise any blueprint-applied parameter before running the simulation
+- **FR19:** A Pro user can share a blueprint via a unique public URL
+- **FR20:** An unauthenticated visitor can view a shared blueprint and its default parameters via its public URL
+
+### Workspace & Funnel Management
+
+- **FR21:** A user can view their list of saved funnels in their workspace
+- **FR22:** A Pro user can save an unlimited number of funnel simulations
+
+### Subscription & Billing
+
+- **FR23:** A Free user can upgrade to Pro by entering payment details
+- **FR24:** A Pro user can view their current plan, billing cycle, and next payment date
+- **FR25:** A Pro user can update their saved payment method
+- **FR26:** A Pro user can cancel their subscription
+- **FR27:** A user receives an email confirmation for subscription activation and cancellation
+- **FR28:** A user can view their billing history
+
+### Export & Reporting
+
+- **FR29:** A Pro user can export a simulation as a PDF report
+- **FR30:** A PDF export includes all funnel input parameters, computed output metrics, and a visual funnel diagram
+
+### Agency Waitlist
+
+- **FR31:** A visitor can submit their email address to join the Agency tier waitlist on the pricing page
+- **FR32:** The operator receives a notification when a new Agency waitlist signup is submitted
+
+### Compliance & Communication
+
+- **FR33:** A user receives transactional emails for: email verification, password reset, subscription confirmation, and cancellation confirmation
+- **FR34:** A user can manage their cookie and analytics consent preferences
+- **FR35:** A user can request permanent deletion of their account and all associated data through a self-serve interface
 
