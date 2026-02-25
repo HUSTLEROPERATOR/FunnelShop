@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type']
 inputDocuments:
   - README.md
   - IMPROVEMENTS.md
@@ -281,5 +281,86 @@ The core innovation assumption to validate: **SMBs will change their pre-spend b
 | Blueprints not detailed enough for real-world use | Medium | Validate 3 blueprints with real users before launch; collect simulation parameters from early users to calibrate defaults |
 | Category education cost too high (no one searches for "funnel simulator") | High | SEO strategy must target problem-aware queries ("marketing ROI calculator", "how to calculate ad ROI") not solution-aware |
 | Distribution dependency on content SEO is slow (6–12 months to rank) | High | Blueprint-led distribution as primary channel. Each industry blueprint is a standalone shareable URL — "Restaurant Funnel Blueprint" shared in F&B Facebook groups, WhatsApp communities, industry newsletters. Zero SEO dependency, immediate targeted distribution. Also validates the category faster than content marketing. |
+
+## SaaS B2B Specific Requirements
+
+### Project-Type Overview
+
+FunnelShop is a multi-tenant SaaS B2B product. For v2 it operates with a single authenticated user role — there is no client-facing login, no viewer role, and no public workspace access. Clients of Agency-tier accounts receive PDF exports only; all simulation work is performed by the Agency Account Manager. The permission model is intentionally minimal for v2, deferring any client portal capability to v3 if demand is validated.
+
+### Tenant Model
+
+| Tier | Tenancy Pattern | Workspace Isolation |
+|---|---|---|
+| Free | Single user, single workspace | User-scoped |
+| Pro | Single user, single workspace | User-scoped |
+| Agency | Multiple AM seats, per-client workspaces | Org-scoped; each client workspace isolated within the Agency org |
+
+**Database implementation:** Row-level multi-tenancy in PostgreSQL from day one. Every funnel and workspace row carries a `org_id` foreign key. Queries are always org-scoped at the repository layer — no cross-tenant data access is architecturally possible without explicit org context.
+
+Agency client workspaces are logical containers within a single Agency org. The AM creates a client workspace, builds funnels inside it, and exports PDFs. Client workspaces are never surfaced to end-clients in v2.
+
+### RBAC Matrix
+
+| Role | Tier | Permissions |
+|---|---|---|
+| Owner | Free, Pro | Full CRUD on own workspace and funnels |
+| Agency Owner | Agency | Full CRUD on org, all client workspaces, all funnels; manage seats |
+| Agency Member | Agency | CRUD on assigned client workspaces; read-only on org settings |
+
+No client-facing roles exist in v2. No admin/super-admin role exists in v2 (operator access handled directly at DB level). Role expansion deferred to v3.
+
+### Subscription Tiers
+
+| Tier | Price | Saved Funnels | Blueprint Access | PDF Export | Seats |
+|---|---|---|---|---|---|
+| Free | €0 | Up to 3 | None | None | 1 |
+| Pro | €29/mo | Unlimited | Full library | Yes | 1 |
+| Agency | €99/mo | Unlimited | Full library | White-label PDF | Up to 5 (expandable) |
+
+Billing managed entirely through Stripe. Plan entitlements enforced server-side on every API request — client-side gating is UI-only and never trusted.
+
+### Integration List
+
+| Service | Purpose | Hosting | Notes |
+|---|---|---|---|
+| Stripe | Billing, subscriptions, webhooks | Stripe-hosted | Day-one requirement; webhook signature verification mandatory |
+| Resend | Transactional email (auth flows, billing receipts) | Resend cloud | Simpler API than SendGrid; free tier sufficient for MVP volume |
+| Sentry | Error monitoring and alerting | Sentry cloud (EU region) | Standard in TS/Next.js stack; EU data residency configured |
+| PostHog | Product analytics, funnel events, feature flags | Self-hosted on Hetzner | GDPR compliant; zero third-party data transfer; runs on existing Docker infrastructure |
+
+No Mixpanel, Amplitude, Google Analytics, or other US-domiciled analytics services. PostHog self-hosted is the single source of product truth.
+
+### Compliance Requirements
+
+**GDPR — Hard Requirements for v2 MVP:**
+
+| Requirement | Scope | Implementation |
+|---|---|---|
+| Self-serve account deletion | In scope, MVP | Cascade delete: user → workspaces → funnels → simulation data. Confirmation modal + 30-second undo window. Stripe subscription cancelled on deletion. |
+| Data portability | Deferred post-MVP | JSON export of user's funnel data. Not blocking v2 launch. |
+| Cookie consent | In scope, MVP | Consent banner for PostHog session tracking. No tracking without explicit consent. |
+| Privacy policy | In scope, MVP | EU-compliant policy referencing data processors (Stripe, Resend, Sentry EU). |
+| DPA with processors | In scope, pre-launch | Data Processing Agreements with Stripe, Resend, Sentry before accepting paying users. |
+
+**EU-Only Hosting — Hard Requirement:**
+
+All user data processed and stored exclusively in the EU. No US-based services for user data.
+
+| Infrastructure Component | Location | Provider |
+|---|---|---|
+| Application servers | Falkenstein, Germany | Hetzner |
+| PostgreSQL database | Falkenstein, Germany | Hetzner |
+| PostHog analytics | Falkenstein, Germany | Hetzner (self-hosted) |
+| Object storage (PDF exports) | Falkenstein, Germany | Hetzner Object Storage |
+| Error monitoring | EU region | Sentry (EU endpoint configured) |
+
+### Implementation Considerations
+
+- **Stripe webhook idempotency:** All Stripe webhook handlers must be idempotent. Events are processed with an idempotency key; duplicate delivery must not create duplicate subscription state.
+- **Seat enforcement:** Agency tier seat limits enforced at invite time server-side. Attempting to add a seat beyond the plan limit returns a 403 with an upgrade prompt.
+- **PostHog event schema:** Define and document a standard event taxonomy before launch (e.g. `simulation_run`, `blueprint_applied`, `pdf_exported`, `plan_upgraded`). Consistent naming enables reliable funnel analysis.
+- **Resend transactional emails:** Minimum required templates for v2: email verification, password reset, subscription confirmation, cancellation confirmation. All templates plain-text fallback required.
+- **Cascade delete order:** Deletion must respect FK constraints. Order: simulation_results → funnels → client_workspaces → org_memberships → org → user. Wrapped in a single database transaction.
 
 
