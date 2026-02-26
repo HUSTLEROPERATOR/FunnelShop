@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-validate-prerequisites']
+stepsCompleted: ['step-01-validate-prerequisites', 'step-02-design-epics']
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
@@ -80,7 +80,7 @@ NFR22: Stripe payment failures surface a clear user-facing error message; no sil
 NFR23: Resend delivery failures for critical auth emails retried automatically; failures logged in Sentry
 NFR24: PostHog SDK failure does not block or degrade any user-facing functionality (fire-and-forget, non-blocking)
 NFR25: Sentry SDK failure does not affect application performance or user experience
-NFR26: Rate limiting — 60 req/min per authenticated user; 10 req/min for unauthenticated endpoints
+NFR26: Rate limiting — 60 req/min per authenticated user; 10 req/min per unauthenticated IP
 
 ### Additional Requirements
 
@@ -143,9 +143,87 @@ NFR26: Rate limiting — 60 req/min per authenticated user; 10 req/min for unaut
 
 ### FR Coverage Map
 
-{{requirements_coverage_map}}
+FR1: E1 — Registration with email + password
+FR2: E1 — Email verification with time-limited token
+FR3: E1 — Login/logout with JWT httpOnly cookies
+FR4: E1 — Password reset via email token
+FR5: E1 — Profile update (display name, email)
+FR6: E8 — Permanent account deletion with data cascade
+FR7: E3 — Create new funnel simulation (persisted)
+FR8: E3 — Configure funnel input parameters
+FR9: E3 — Run simulation and compute output metrics
+FR10: E3 — View simulation results (visual funnel + metric summary)
+FR11: E3 — Save named funnel to workspace
+FR12: E3 — Rename or delete a saved funnel
+FR13: E3 — Free tier cap: 1 saved funnel enforced server-side
+FR14: E3 — Upgrade prompt when Free tier limit reached
+FR15: E5 — Browse blueprint library by industry/use case
+FR16: E5 — View blueprint description and parameter rationale
+FR17: E5 — Apply blueprint to new simulation (pre-populate params)
+FR18: E5 — Customise blueprint parameters before running simulation
+FR19: E5 — Pro user shares blueprint via unique public URL
+FR20: E5 — Unauthenticated visitor views shared blueprint via public URL
+FR21: E3 — View list of saved funnels in workspace
+FR22: E3 — Pro user: unlimited saved funnels (no cap enforced)
+FR23: E4 — Free user upgrades to Pro via Stripe Checkout
+FR24: E4 — View current plan, billing cycle, next payment date
+FR25: E4 — Update saved payment method via Stripe Customer Portal
+FR26: E4 — Cancel subscription via Stripe Customer Portal
+FR27: E4 — Email confirmation for subscription activation and cancellation
+FR28: E4 — View billing history
+FR29: E6 — Pro user exports simulation as PDF report
+FR30: E6 — PDF includes all input params, computed metrics, visual funnel diagram
+FR31: E7 — Agency waitlist email capture on pricing page
+FR32: E7 — Operator notified via email on new Agency waitlist signup
+FR33: E1 (email verification + password reset emails) / E4 (subscription confirmation + cancellation emails)
+FR34: E8 — Cookie and analytics consent management (PostHog gated)
+FR35: E8 — Self-serve account deletion request interface
+FR36: E3 — Free user duplicates saved funnel as new unsaved simulation
 
 ## Epic List
 
-{{epics_list}}
+### Epic 0: Server TypeScript Migration (Prerequisite)
+Migrate the `/server` package from CommonJS JavaScript to TypeScript + ESM, establishing the type-safe foundation required for all v2 server-side development. This is a zero-feature-value story that is a hard prerequisite — no v2 server code is written until this epic is complete.
+**FRs covered:** None (technical prerequisite — unblocks FR1–FR36 server-side implementation)
+**NFRs addressed:** NFR8 (Drizzle parameterised queries require TypeScript schema types), NFR6 (typed bcrypt integration), NFR7 (typed Stripe webhook payloads)
+
+### Epic 1: User Authentication & Account Management
+Users can register for an account, verify their email, log in and out securely, reset their password, and update their profile — establishing a complete, secure identity system that gates all user-specific data and Pro features.
+**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR33 (verification + reset transactional emails)
+**NFRs addressed:** NFR5 (HTTPS), NFR6 (bcrypt 12 rounds), NFR9 (JWT 15min access / 30d refresh rotation), NFR26 (auth rate limiting 10/15min), NFR23 (Resend retry for critical auth emails)
+
+### Epic 2: PostgreSQL + Drizzle + Multi-Tenant Foundation
+Establish the complete database schema, Drizzle ORM configuration, migration tooling, and repository pattern layer — ensuring zero cross-tenant data leaks by architectural design and providing the persistence layer all subsequent epics depend on.
+**FRs covered:** None (infrastructure foundation — enables persistent implementation of FR7–FR36)
+**NFRs addressed:** NFR8 (parameterised queries via Drizzle), NFR10 (org_id scoping on all tenant tables), NFR16 (org_id + user_id indexes), NFR17 (stateless app layer — session state in DB only)
+
+### Epic 3: Funnel Persistence & Workspace
+Authenticated users can save, name, duplicate, rename, and delete their funnel simulations in a personal workspace. Free users are capped at 1 saved funnel with an upgrade prompt at the limit; Pro users save unlimited funnels.
+**FRs covered:** FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, FR21, FR22, FR36
+**NFRs addressed:** NFR1 (simulation <500ms server-side), NFR2 (workspace loads <3s), NFR10 (all funnel queries org_id scoped)
+
+### Epic 4: Subscription Billing
+Free users can upgrade to Pro via Stripe Checkout, view and manage their subscription details, update their payment method, cancel, and view billing history. Entitlements activate immediately on payment via webhook; Pro confirmation and cancellation emails are sent via Resend.
+**FRs covered:** FR23, FR24, FR25, FR26, FR27, FR28, FR33 (subscription + cancellation emails)
+**NFRs addressed:** NFR7 (Stripe webhook signature verification), NFR13 (idempotency via processed_stripe_events table), NFR22 (clear payment failure error messages), NFR21 (DPAs with Stripe executed before first paying user)
+
+### Epic 5: Blueprint Library
+All authenticated users can browse, preview, and apply pre-built funnel blueprints to new simulations. Pro users can share blueprints via unique public URLs; unauthenticated visitors can view shared blueprints and their default parameters without an account.
+**FRs covered:** FR15, FR16, FR17, FR18, FR19, FR20
+**NFRs addressed:** NFR3 (blueprint library renders <2s)
+
+### Epic 6: PDF Export
+Pro users can export any saved simulation as a professionally formatted PDF report that includes all input parameters, computed output metrics, and the visual funnel diagram — matching the in-app canvas output pixel-for-pixel.
+**FRs covered:** FR29, FR30
+**NFRs addressed:** NFR4 (PDF generates and downloads <10s)
+
+### Epic 7: Agency Waitlist
+Visitors on the pricing page can submit their email address to join the Agency tier waitlist. The operator receives an immediate email notification via Resend for each new signup, enabling manual follow-up before the Agency tier launches.
+**FRs covered:** FR31, FR32
+**NFRs addressed:** NFR23 (Resend delivery retry + failure logging)
+
+### Epic 8: GDPR Compliance
+Users have full, self-serve control over their data: they can manage cookie and analytics consent (PostHog gated until consent), request permanent account deletion with full cascade across all tables in a single transaction, and view their data rights. Operator has DPAs in place with all EU-data processors.
+**FRs covered:** FR6, FR34, FR35
+**NFRs addressed:** NFR18 (deletion cascade <24h, target: immediate), NFR19 (PostHog consent-gated init), NFR20 (EU-only data), NFR21 (DPAs with Stripe/Resend/Sentry), NFR11 (Sentry PII scrubbing)
 
