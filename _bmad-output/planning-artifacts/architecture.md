@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5]
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/project-context.md
@@ -268,3 +268,289 @@ Machine-readable `code` string + human-readable `message`. HTTP status codes sem
 - Pino `requestId` context must be threaded through async chains (use `AsyncLocalStorage` or pass explicitly)
 - Puppeteer instance queue is shared infrastructure — PDF export story must implement queue before exposing endpoint
 - Testcontainers setup is a shared test utility — DB test strategy story must land before any integration tests are written
+
+## Implementation Patterns & Consistency Rules
+
+### Pattern Categories Defined
+
+**Critical conflict points identified:** 12 areas where AI agents could make different choices — all resolved below.
+
+---
+
+### Naming Patterns
+
+**Database Naming Conventions (PostgreSQL + Drizzle):**
+
+| Element | Convention | Example |
+|---|---|---|
+| Tables | `snake_case`, plural | `users`, `organisations`, `funnels`, `refresh_tokens`, `blueprints`, `simulation_results` |
+| Columns | `snake_case` | `org_id`, `created_at`, `stripe_customer_id`, `is_active` |
+| Foreign keys | `{referenced_table_singular}_id` | `org_id`, `user_id`, `funnel_id` |
+| Indexes | `idx_{table}_{column(s)}` | `idx_funnels_org_id`, `idx_users_email` |
+| Primary keys | `id` (UUID, default) | `id uuid primary key default gen_random_uuid()` |
+| Timestamps | `created_at`, `updated_at` | Always present on every table |
+
+Drizzle schema maps DB `snake_case` columns to TS `camelCase` properties via inference — DB stays `snake_case`, code stays `camelCase`.
+
+**API Endpoint Naming Conventions:**
+
+| Element | Convention | Example |
+|---|---|---|
+| Resources | Plural noun | `/api/funnels`, `/api/blueprints`, `/api/users` |
+| Route params | `:id` (UUID string) | `/api/funnels/:id` |
+| Nested actions | `/{resource}/:id/{action}` | `/api/funnels/:id/export`, `/api/funnels/:id/duplicate` |
+| Billing routes | `/api/billing/{noun}` | `/api/billing/subscription`, `/api/billing/portal` |
+| Auth routes | `/api/auth/{verb}` | `/api/auth/login`, `/api/auth/logout`, `/api/auth/refresh` |
+| Webhooks | `/api/webhooks/{provider}` | `/api/webhooks/stripe` |
+| Waitlist | `/api/waitlist` | POST only |
+
+**Code Naming Conventions — Server (TypeScript):**
+
+| Element | Convention | Example |
+|---|---|---|
+| Files | `kebab-case.ts` | `funnel-repository.ts`, `auth-middleware.ts`, `billing-service.ts` |
+| Functions/variables | `camelCase` | `getFunnelById`, `orgId`, `stripeCustomerId` |
+| Types/interfaces | `PascalCase` | `FunnelRow`, `CreateFunnelBody`, `AuthPayload`, `JwtClaims` |
+| Zod schemas | `PascalCase` + `Schema` suffix | `CreateFunnelSchema`, `LoginBodySchema`, `UpdateProfileSchema` |
+| Express routers | `kebab-case.router.ts` | `funnels.router.ts`, `auth.router.ts` |
+| Repositories | `kebab-case.repository.ts` | `funnel-repository.ts`, `user-repository.ts` |
+| Services | `kebab-case.service.ts` | `billing-service.ts`, `email-service.ts` |
+| Middleware | `kebab-case.middleware.ts` | `auth-middleware.ts`, `rate-limit-middleware.ts` |
+
+**Code Naming Conventions — Client (React/TypeScript):**
+
+| Element | Convention | Example |
+|---|---|---|
+| Component files | `PascalCase.tsx` | `FunnelCard.tsx`, `BlueprintLibrary.tsx`, `ProGate.tsx` |
+| Hook files | `use-kebab-case.ts` | `use-funnel-list.ts`, `use-auth.ts`, `use-subscription.ts` |
+| Utility files | `kebab-case.ts` | `format-currency.ts`, `parse-jwt.ts`, `cn.ts` |
+| Query keys | `camelCase` array | `['funnels', orgId]`, `['blueprints']`, `['billing', 'subscription']` |
+| Context files | `PascalCase.context.tsx` | `Auth.context.tsx` |
+
+---
+
+### Structure Patterns
+
+**Test File Placement:** Co-located `*.test.ts` / `*.test.tsx` next to source file.
+
+```
+server/
+  auth/
+    auth-middleware.ts
+    auth-middleware.test.ts       ← unit test (pg-mem or mock)
+    auth-service.ts
+    auth-service.test.ts          ← integration test (Testcontainers)
+  funnels/
+    funnel-repository.ts
+    funnel-repository.test.ts
+
+client/src/
+  components/
+    FunnelCard.tsx
+    FunnelCard.test.tsx
+  hooks/
+    use-funnel-list.ts
+    use-funnel-list.test.ts
+```
+
+Rationale: consistent with existing client-side Vitest pattern in project-context.md. No context switching when navigating the codebase.
+
+**Module Organisation (server):** Feature-based, not type-based.
+
+```
+server/src/
+  auth/           ← auth-middleware, auth-service, auth.router, refresh-token.repository
+  funnels/        ← funnel.router, funnel-service, funnel-repository
+  blueprints/     ← blueprint.router, blueprint-repository
+  billing/        ← billing.router, billing-service, stripe-webhook.router
+  exports/        ← export.router, pdf-service, puppeteer-queue
+  gdpr/           ← gdpr.router, gdpr-service
+  waitlist/       ← waitlist.router, waitlist-repository
+  shared/         ← db.ts, pino.ts, errors.ts, zod-middleware.ts
+  index.ts        ← Express app bootstrap
+```
+
+**Shared utilities go in `server/src/shared/`** — never duplicated across feature modules.
+
+---
+
+### Format Patterns
+
+**API Response Format — Direct (no success envelope):**
+
+```ts
+// ✅ Correct — return resource directly
+res.status(200).json({ id: '...', name: '...', orgId: '...' })
+res.status(201).json({ id: '...', createdAt: '...' })
+res.status(204).send()
+
+// ✅ Correct — error envelope only
+res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'email is required', field: 'email' } })
+res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' } })
+res.status(403).json({ error: { code: 'ENTITLEMENT_ERROR', message: 'Pro plan required' } })
+res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Funnel not found' } })
+res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } })
+
+// ❌ Anti-pattern — never wrap success in { data: ... }
+res.status(200).json({ data: { id: '...' } })
+```
+
+**JSON Field Naming — `camelCase` in all API responses:**
+
+```ts
+// ✅ Correct — camelCase in API responses (Drizzle maps from snake_case at ORM layer)
+{ "id": "uuid", "orgId": "uuid", "createdAt": "2026-02-26T14:30:00.000Z", "stripeCustomerId": "cus_..." }
+
+// ❌ Anti-pattern — never expose snake_case to frontend
+{ "org_id": "uuid", "created_at": "...", "stripe_customer_id": "..." }
+```
+
+**Date/Time Format — ISO 8601 strings in all JSON:**
+
+```ts
+// ✅ Correct
+{ "createdAt": "2026-02-26T14:30:00.000Z" }
+
+// ❌ Anti-pattern — never use Unix timestamps or locale strings
+{ "createdAt": 1740578200 }
+{ "createdAt": "26 Feb 2026" }
+```
+
+**HTTP Status Code Semantics (locked):**
+
+| Situation | Code |
+|---|---|
+| GET / DELETE success with body | 200 |
+| POST / PUT — resource created | 201 |
+| DELETE / logout — no content | 204 |
+| Zod validation failure | 422 |
+| Missing or invalid auth token | 401 |
+| Valid auth, insufficient entitlement | 403 |
+| Resource not found | 404 |
+| Unexpected server error | 500 |
+
+---
+
+### Communication Patterns
+
+**Error Handling — Global Express Error Handler:**
+
+All route handlers throw typed errors or call `next(err)`. No route handler sends an error response directly.
+
+```ts
+// ✅ Correct — throw typed error, global handler responds
+throw new ValidationError('email is required', 'email')
+throw new AuthError('Invalid token')
+throw new EntitlementError('Pro plan required')
+throw new NotFoundError('Funnel not found')
+
+// Global handler (registered last in index.ts) maps error type → HTTP status + JSON
+```
+
+Error classes live in `server/src/shared/errors.ts`. Every error class carries a `code` string and optional `field`.
+
+**Pino Logging — Shape and Levels:**
+
+```ts
+// Every pino-http request log automatically includes:
+{ userId, orgId, requestId, method, url, statusCode, responseTime }
+
+// Manual log entries follow the same shape:
+logger.info({ userId, orgId, funnelId }, 'Funnel created')
+logger.warn({ userId, orgId, reason: 'rate_limit' }, 'Rate limit hit')
+logger.error({ userId, orgId, err }, 'Stripe webhook processing failed')
+```
+
+| Level | When to use |
+|---|---|
+| `info` | Normal request/response (via pino-http), successful business events |
+| `warn` | Expected failures: auth failure, validation error, rate limit hit, Stripe dispute |
+| `error` | Unexpected failures: DB error, Stripe webhook failure, unhandled exception |
+| `debug` | Dev only — disabled in production |
+
+**`requestId` threading:** Use `AsyncLocalStorage` to carry `requestId` through async chains without explicit parameter passing. pino-http assigns `requestId` at the start of each request.
+
+---
+
+### Process Patterns
+
+**Zod Validation — Always at Route Entry:**
+
+```ts
+// ✅ Correct — validate before any business logic
+router.post('/funnels', async (req, res, next) => {
+  const body = CreateFunnelSchema.safeParse(req.body)
+  if (!body.success) return next(new ValidationError(body.error))
+  // proceed with body.data (fully typed)
+})
+
+// ❌ Anti-pattern — never access req.body without Zod parse
+const { name } = req.body
+```
+
+**Multi-tenancy — orgId Always from JWT, Never from Client:**
+
+```ts
+// ✅ Correct — orgId from verified JWT claim
+const { orgId } = req.auth  // set by auth middleware from JWT
+await funnelRepository.listByOrg(orgId)
+
+// ❌ Anti-pattern — never accept orgId from client
+const orgId = req.body.orgId   // ← NEVER
+const orgId = req.params.orgId // ← NEVER (for data access decisions)
+```
+
+**Loading State — TanStack Query conventions (client):**
+
+```ts
+// ✅ Correct — use TanStack Query for all server state
+const { data: funnels, isLoading, isError } = useQuery({
+  queryKey: ['funnels', orgId],
+  queryFn: () => api.getFunnels(),
+})
+
+// ❌ Anti-pattern — never use useState + useEffect for server data
+const [funnels, setFunnels] = useState([])
+useEffect(() => { fetch('/api/funnels').then(...) }, [])
+```
+
+---
+
+### Enforcement Guidelines
+
+**All AI Agents MUST:**
+
+- Use `camelCase` in all API response JSON fields — never expose DB `snake_case` to frontend
+- Return resources directly on success — never wrap in `{ data: ... }`
+- Throw typed errors and call `next(err)` — never send error responses inline in route handlers
+- Extract `orgId` exclusively from `req.auth` (JWT) — never from request body or params
+- Co-locate `*.test.ts` files next to source files — never create a separate `test/` root directory
+- Use Zod `safeParse` at the start of every route handler before accessing `req.body`
+- Pass `orgId` as an explicit parameter to every repository function — never assume it from context
+- Name DB tables in `snake_case` plural — never `PascalCase`, never singular
+- Use ISO 8601 strings for all date/time values in JSON — never Unix timestamps
+
+**Anti-Patterns (explicitly forbidden):**
+
+```ts
+// ❌ Success envelope
+res.json({ data: funnel })
+
+// ❌ snake_case in API response
+res.json({ org_id: '...' })
+
+// ❌ Inline error response (bypasses global handler)
+res.status(401).json({ message: 'Unauthorized' })
+
+// ❌ orgId from client input
+const orgId = req.body.orgId
+
+// ❌ useEffect for server data fetch
+useEffect(() => { fetch('/api/funnels') }, [])
+
+// ❌ Unvalidated req.body access
+const { name } = req.body
+
+// ❌ Unix timestamp in JSON
+{ "createdAt": 1740578200 }
+```
