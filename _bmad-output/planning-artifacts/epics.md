@@ -256,3 +256,247 @@ So that all v2 server code is type-safe and compatible with Drizzle ORM, Stripe 
 **And** `GET /api/scenarios` (v1 regression endpoint) returns 200 with correct data — no v1 functionality broken
 **And** Jest coverage report shows ≥92.5% coverage — no regression from v1 baseline
 
+---
+
+## Epic 1: User Authentication & Account Management
+
+Users can register, verify their email, log in and out securely, reset their password, and update their profile — establishing a complete, secure identity system that gates all user-specific data and Pro features.
+
+### Story 1.1: Drizzle ORM Bootstrap + Auth Database Schema
+
+As a **developer**,
+I want the PostgreSQL connection, Drizzle ORM configuration, and auth-related database tables established,
+So that all auth endpoints have a persistent, type-safe data layer.
+
+**Acceptance Criteria:**
+
+**Given** `DATABASE_URL` is set in `/server/.env`
+**When** the server starts
+**Then** Drizzle connects to PostgreSQL without error; server starts on port 5000
+**And** `/server/db/schema.ts` defines these tables in Drizzle DSL: `users`, `orgs`, `org_memberships`, `user_sessions`, `email_verification_tokens`
+**And** `/server/db/index.ts` exports a typed `db` instance (`drizzle(pool)` via `pg` connection pool)
+**And** `drizzle.config.ts` at repo root points to `server/db/schema.ts` and `server/db/migrations/`
+**And** `npx drizzle-kit generate` creates a SQL migration file in `/server/db/migrations/`
+**And** `npx drizzle-kit migrate` applies that migration; all 5 tables exist in the database
+**And** `/server/db/repositories/users.repository.ts` exports typed functions: `createUser`, `findUserByEmail`, `findUserById`, `updateUser`
+**And** `/server/db/repositories/orgs.repository.ts` exports: `createOrg`, `findOrgById`, `createMembership`
+**And** `npm test` still passes — existing v1 tests hit in-memory `dataStore` and are unaffected by the new DB layer
+
+---
+
+### Story 1.2: User Registration
+
+As a **visitor**,
+I want to register for an account with my email and password,
+So that I can access FunnelShop's features.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/auth/register` with `{ email, password, displayName }` where email is unique and password ≥ 8 chars
+**When** the request is processed
+**Then** response is `201 { userId, email }`
+**And** a `users` row is created with `email_verified = false` and `password_hash = bcrypt(password, 12)` — never plaintext
+**And** a corresponding `orgs` row is created; an `org_memberships` row links the user as `role: "owner"`
+**And** an `email_verification_tokens` row is inserted with a 24-hour TTL
+**And** Resend sends a verification email to the registered address containing the token link
+
+**Given** a POST with an email already registered
+**Then** response is `409 { error: "Email already registered" }`
+
+**Given** an invalid email format in the request body
+**Then** response is `400 { error: "Invalid email format", field: "email" }`
+
+**Given** a password fewer than 8 characters
+**Then** response is `400 { error: "Password must be at least 8 characters", field: "password" }`
+
+**Given** 10 registration requests from the same IP within 15 minutes
+**When** the 11th request arrives
+**Then** response is `429 { error: "Too many requests" }`
+
+---
+
+### Story 1.3: Email Verification
+
+As a **registered user**,
+I want to verify my email address via the link sent to my inbox,
+So that my account is activated and I can log in.
+
+**Acceptance Criteria:**
+
+**Given** GET `/api/v1/auth/verify-email?token=<valid_unexpired_token>`
+**When** the token exists in `email_verification_tokens` and is within 24 hours of creation
+**Then** response is `200 { message: "Email verified" }`
+**And** `users.email_verified` set to `true`
+**And** the token row deleted from `email_verification_tokens`
+
+**Given** a valid token older than 24 hours
+**Then** response is `410 { error: "Verification link expired" }`
+
+**Given** a token that does not exist or has already been used
+**Then** response is `400 { error: "Invalid verification token" }`
+
+**Given** an unverified user attempts POST `/api/v1/auth/login`
+**Then** response is `403 { error: "Email not verified", code: "EMAIL_NOT_VERIFIED" }`
+
+---
+
+### Story 1.4: User Login + JWT Cookie Issuance
+
+As a **verified user**,
+I want to log in with my email and password,
+So that I receive a secure session that gates access to protected features.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/auth/login` with correct `{ email, password }` for a verified user
+**When** bcrypt comparison succeeds
+**Then** response is `200 { userId, email, tier }`
+**And** response sets httpOnly `SameSite=Strict` `Secure` cookie `access_token` (JWT, 15-min expiry)
+**And** response sets httpOnly `SameSite=Strict` `Secure` cookie `refresh_token` (30-day expiry)
+**And** JWT payload contains `{ userId, orgId, role, tier }`
+**And** refresh token stored as a row in `user_sessions`
+
+**Given** a wrong password
+**Then** response is `401 { error: "Invalid credentials" }` — identical to unknown email (no user enumeration)
+
+**Given** a non-existent email
+**Then** response is `401 { error: "Invalid credentials" }`
+
+**Given** 10 login requests from the same IP within 15 minutes
+**When** the 11th arrives
+**Then** response is `429 { error: "Too many requests" }`
+
+---
+
+### Story 1.5: Auth Middleware + Token Refresh
+
+As the **system**,
+I want protected routes to verify JWT cookies and refresh expired access tokens transparently,
+So that authenticated sessions are secure and seamless without forcing re-login on every access-token expiry.
+
+**Acceptance Criteria:**
+
+**Given** `requireAuth` middleware applied to all `/api/v1/*` routes except `/auth/register`, `/auth/login`, `/auth/verify-email`, `/auth/forgot-password`, `/auth/reset-password`
+**When** a request arrives with no `access_token` cookie
+**Then** response is `401 { error: "Unauthorized" }`
+
+**Given** a request with an expired `access_token` cookie but a valid `refresh_token` cookie
+**When** POST `/api/v1/auth/refresh` is called
+**Then** response is `200`; new `access_token` cookie set (15-min expiry); old `user_sessions` row replaced with a new one (rotation); new `refresh_token` cookie set
+
+**Given** an expired `refresh_token`
+**Then** response is `401 { error: "Session expired" }`; both cookies cleared
+
+**Given** `requireTier('pro')` middleware on a route and the requesting user's JWT `tier` is `"free"`
+**Then** response is `403 { error: "Upgrade required", code: "UPGRADE_REQUIRED", requiredTier: "pro" }`
+
+**Given** a valid `access_token` cookie
+**When** GET `/api/v1/users/me`
+**Then** response is `200 { userId, email, displayName, tier, orgId }`
+
+---
+
+### Story 1.6: Logout
+
+As an **authenticated user**,
+I want to log out,
+So that my session is terminated and my cookies are cleared server-side.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/auth/logout` with a valid `access_token` cookie
+**When** request is processed
+**Then** response is `200 { message: "Logged out" }`
+**And** `access_token` and `refresh_token` cookies cleared (Set-Cookie with `maxAge=0`)
+**And** the `user_sessions` row for the current refresh token is deleted
+
+**Given** a subsequent GET `/api/v1/users/me` after logout
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 1.7: Password Reset Flow
+
+As a **user who forgot their password**,
+I want to receive a reset link by email and set a new password,
+So that I can regain access to my account without contacting support.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/auth/forgot-password` with `{ email }` — whether the email exists or not
+**Then** response is always `200 { message: "If that email exists, a reset link was sent" }` (no user enumeration)
+**And** if the email exists: a reset token (1-hour TTL, single-use) is inserted in DB; Resend sends reset email with token link
+
+**Given** POST `/api/v1/auth/reset-password` with `{ token, newPassword }` for a valid, unexpired, unused token and `newPassword` ≥ 8 chars
+**Then** response is `200 { message: "Password reset successful" }`
+**And** `users.password_hash` updated with `bcrypt(newPassword, 12)`
+**And** token row deleted from DB — cannot be reused
+
+**Given** a reset token older than 1 hour
+**Then** response is `410 { error: "Reset link expired" }`
+
+**Given** an already-used or non-existent token
+**Then** response is `400 { error: "Invalid or already-used reset token" }`
+
+**Given** `newPassword` fewer than 8 characters
+**Then** response is `400 { error: "Password must be at least 8 characters", field: "newPassword" }`
+
+**Given** 10 forgot-password requests from the same IP within 15 minutes
+**Then** the 11th returns `429 { error: "Too many requests" }`
+
+---
+
+### Story 1.8: Profile Update
+
+As an **authenticated user**,
+I want to update my display name and email address,
+So that my account details stay current.
+
+**Acceptance Criteria:**
+
+**Given** PATCH `/api/v1/users/me` with `{ displayName: "New Name" }` and a valid session
+**Then** response is `200 { userId, email, displayName }`
+**And** `users.display_name` updated in DB
+
+**Given** PATCH `/api/v1/users/me` with `{ email: "new@example.com" }` where the new email is not already in use
+**Then** response is `200 { userId, email: "new@example.com", displayName }`
+**And** `users.email_verified` reset to `false`
+**And** new `email_verification_tokens` row inserted; Resend sends verification email to the new address
+
+**Given** the new email is already registered to another user
+**Then** response is `409 { error: "Email already registered" }`
+
+**Given** an invalid email format
+**Then** response is `400 { error: "Invalid email format", field: "email" }`
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 1.9: AuthContext + ProtectedRoute (Client)
+
+As a **user**,
+I want the application to know my session state on load and redirect me to login when unauthenticated,
+So that protected pages are inaccessible without a valid session and I never see a flash of protected content.
+
+**Acceptance Criteria:**
+
+**Given** the app loads in a browser
+**When** GET `/api/v1/users/me` returns `200`
+**Then** `AuthContext` populates `user` with `{ userId, email, displayName, tier, orgId }`; `isLoading` transitions `true → false`
+
+**Given** GET `/api/v1/users/me` returns `401`
+**Then** `user` is `null`; `isLoading` transitions `true → false`
+
+**Given** `user` is `null` and the user navigates to a `ProtectedRoute`
+**Then** they are redirected to `/login` with no flash of protected content
+
+**Given** `login(email, password)` is called from `AuthContext`
+**When** POST `/api/v1/auth/login` returns `200`
+**Then** `user` state is set; calling component re-renders with authenticated state
+
+**Given** `logout()` is called from `AuthContext`
+**When** POST `/api/v1/auth/logout` returns `200`
+**Then** `user` is set to `null`; app navigates to `/login`
+
