@@ -500,3 +500,86 @@ So that protected pages are inaccessible without a valid session and I never see
 **When** POST `/api/v1/auth/logout` returns `200`
 **Then** `user` is set to `null`; app navigates to `/login`
 
+---
+
+## Epic 2: PostgreSQL + Drizzle + Multi-Tenant Foundation
+
+Extend the schema established in E1 to cover all remaining domains; formalize the repository pattern with org_id enforcement; add structured logging and typed error infrastructure.
+
+### Story 2.1: Complete Domain Schema + Migrations
+
+As a **developer**,
+I want all remaining domain database tables defined in Drizzle schema with migrations applied,
+So that E3–E8 epics have a complete, typed data layer to build against from day one.
+
+**Acceptance Criteria:**
+
+**Given** the auth schema from E1 is already applied
+**When** the E2 migration runs
+**Then** `/server/db/schema.ts` is extended with: `funnels`, `simulation_results`, `client_workspaces`, `blueprints`, `agency_waitlist`, `processed_stripe_events`
+**And** `funnels` has columns: `id`, `org_id` (FK→orgs, indexed), `workspace_id` (nullable FK→client_workspaces), `name`, `canvas_state` JSONB, `created_at`, `updated_at`
+**And** `simulation_results` has columns: `id`, `funnel_id` (FK→funnels), `org_id` (indexed), `result_snapshot` JSONB, `created_at`
+**And** `client_workspaces` has columns: `id`, `org_id` (FK→orgs, indexed), `name`, `created_at`
+**And** `blueprints` has columns: `id`, `name`, `description`, `industry`, `canvas_state` JSONB, `is_active`, `share_slug` (unique, nullable), `created_at` — no `org_id` (system-scoped)
+**And** `agency_waitlist` has columns: `id`, `email` (unique), `created_at`
+**And** `processed_stripe_events` has columns: `id`, `stripe_event_id` (unique), `processed_at`
+**And** `npx drizzle-kit generate` produces a new migration file; `npx drizzle-kit migrate` applies it — all 6 tables created in DB
+**And** all tenant-scoped tables (`funnels`, `simulation_results`, `client_workspaces`) have a composite index on `(org_id, id)`
+**And** `npm test` passes — no regressions
+
+---
+
+### Story 2.2: Multi-Tenant Repository Pattern + Org_id Enforcement
+
+As a **developer**,
+I want all domain repository functions to require `orgId` as a mandatory parameter enforced in every WHERE clause,
+So that cross-tenant data access is architecturally impossible without explicit org context.
+
+**Acceptance Criteria:**
+
+**Given** `/server/db/repositories/funnels.repository.ts`
+**Then** it exports: `findAllByOrg(orgId)`, `findById(id, orgId)`, `create(data: NewFunnel)`, `update(id, orgId, data)`, `delete(id, orgId)`, `countByOrg(orgId)` — every query includes `.where(eq(funnels.orgId, orgId))`
+**And** unit test: `findById(id, wrongOrgId)` returns `null` — not the funnel belonging to the correct org
+**And** unit test: `findAllByOrg(orgIdA)` returns only orgA's funnels — orgB's funnels are absent
+
+**Given** `/server/db/repositories/blueprints.repository.ts`
+**Then** it exports: `findAll()`, `findById(id)`, `findBySlug(slug)` — no `orgId` parameter (system-scoped)
+
+**Given** `/server/db/repositories/billing.repository.ts`
+**Then** it exports: `updateOrgTier(orgId, tier)`, `updateStripeIds(orgId, customerId, subscriptionId)`, `findProcessedEvent(stripeEventId)`, `markEventProcessed(stripeEventId)`
+
+**Given** `/server/db/repositories/simulations.repository.ts`
+**Then** it exports: `create(data: NewSimulation)`, `findAllByFunnel(funnelId, orgId)` — `orgId` enforced in every query
+
+**And** no Drizzle query code appears outside `repositories/` — route handlers and services import only from repository files (verified via ESLint `no-restricted-imports` or grep in CI)
+
+---
+
+### Story 2.3: Pino Structured Logging + Global Error Handler + Domain Errors
+
+As the **system**,
+I want every HTTP request logged with structured context and all unhandled errors captured uniformly,
+So that production debugging is fast and PII-safe.
+
+**Acceptance Criteria:**
+
+**Given** `/server/lib/logger.ts`
+**Then** it exports a Pino instance with `redact: ['req.headers.authorization', 'body.password', 'body.password_hash']`
+**And** `level` defaults to `process.env.LOG_LEVEL || 'info'`
+
+**Given** any HTTP request to the server
+**Then** the request log entry contains: `userId` (from JWT or `"anonymous"`), `orgId` (or `null`), `method`, `path`, `statusCode`, `durationMs`
+
+**Given** an unhandled error thrown in any route handler
+**When** the global Express error middleware catches it
+**Then** Pino logs at `error` level with `{ err, path, method }`
+**And** `Sentry.captureException(err)` is called
+**And** response is `500 { error: "Internal server error" }` — stack trace never exposed in production (`NODE_ENV !== 'development'`)
+
+**Given** `/server/errors/domain.errors.ts`
+**Then** it exports: `FunnelLimitError` (code: `FUNNEL_LIMIT_REACHED`), `UnauthorizedError` (code: `UNAUTHORIZED`), `UpgradeRequiredError` (code: `UPGRADE_REQUIRED`)
+**And** each class extends `Error` with a typed `code: string` property
+
+**Given** a `FunnelLimitError` thrown inside a route handler and caught by the handler's catch block
+**Then** response is `403 { error: "Funnel limit reached", code: "FUNNEL_LIMIT_REACHED" }` — not a 500
+
