@@ -735,3 +735,126 @@ So that I understand my limit and have a direct path to upgrade.
 **Given** a Pro tier user saves a funnel and the API returns `201`
 **Then** no upgrade modal is shown; the save confirmation is displayed normally
 
+---
+
+## Epic 4: Subscription Billing
+
+Free users can upgrade to Pro via Stripe Checkout, view and manage their subscription, cancel, and see billing history. Entitlements activate immediately via webhooks; confirmation emails sent via Resend.
+
+### Story 4.1: Stripe Checkout — Upgrade to Pro
+
+As a **Free tier user**,
+I want to initiate an upgrade to Pro,
+So that I'm taken to Stripe's hosted checkout to enter payment details securely.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/billing/create-checkout-session` with a valid Free tier session
+**When** the request is processed
+**Then** response is `200 { checkoutUrl }`
+**And** `checkoutUrl` is a valid Stripe-hosted Checkout URL for the configured Pro price ID
+**And** a Stripe Customer is created (or retrieved if one exists for the org); `orgs.stripe_customer_id` stored in DB
+**And** the Checkout session includes `success_url` and `cancel_url` pointing back to the app
+
+**Given** a Pro tier user calling this endpoint
+**Then** response is `400 { error: "Already subscribed to Pro" }`
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 4.2: Stripe Webhooks + Tier Activation
+
+As the **system**,
+I want Stripe webhook events to update org tier immediately and idempotently,
+So that Pro entitlements are active the moment payment succeeds — and duplicate event delivery is safe.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/webhooks/stripe` with an invalid `Stripe-Signature` header
+**Then** response is `400 { error: "Invalid webhook signature" }` — event discarded, no state change
+
+**Given** a `checkout.session.completed` event with a valid signature for a known org, delivered for the first time
+**Then** `orgs.tier` set to `"pro"`; `orgs.stripe_subscription_id` updated; `stripe_event_id` inserted into `processed_stripe_events`; response is `200`
+
+**Given** the same `checkout.session.completed` event delivered a second time (Stripe retry)
+**Then** `findProcessedEvent(stripeEventId)` returns a match; no state change; response is `200` (idempotent)
+
+**Given** a `customer.subscription.deleted` event with a valid signature
+**Then** `orgs.tier` set to `"free"`; `orgs.stripe_subscription_id` cleared; response is `200`
+
+**Given** a `customer.subscription.updated` event
+**Then** `orgs.tier` updated to reflect the new plan; response is `200`
+
+**Given** an `invoice.payment_failed` event
+**Then** Resend sends a dunning email to the org owner's address; response is `200`
+**And** Resend failure: error logged to Sentry; webhook still returns `200` — email failure does not block event processing
+
+**And** `/api/v1/webhooks/stripe` has no `requireAuth` middleware and no rate limiting applied
+
+---
+
+### Story 4.3: Subscription Management + Billing Portal
+
+As a **Pro user**,
+I want to view my subscription details, update my payment method, cancel, and see billing history,
+So that I have full self-serve control over my billing without contacting support.
+
+**Acceptance Criteria:**
+
+**Given** GET `/api/v1/billing/subscription` with a valid Pro session
+**Then** response is `200 { plan: "pro", status, currentPeriodEnd, cancelAtPeriodEnd }`
+
+**Given** GET `/api/v1/billing/subscription` with a Free tier session
+**Then** response is `200 { plan: "free", status: "active" }`
+
+**Given** POST `/api/v1/billing/portal` with a valid Pro session
+**Then** response is `200 { portalUrl }` — `portalUrl` opens Stripe Customer Portal (payment method update + cancellation)
+**And** `orgs.stripe_customer_id` used to generate the portal session
+
+**Given** GET `/api/v1/billing/history` with a valid Pro session
+**Then** response is `200 [{ invoiceId, amount, currency, status, date, receiptUrl }, ...]`
+
+**Given** an unauthenticated request to any billing endpoint
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 4.4: Subscription Confirmation Emails
+
+As a **user**,
+I want to receive email confirmation when I subscribe or cancel,
+So that I have a clear, timestamped record of my billing actions.
+
+**Acceptance Criteria:**
+
+**Given** a `checkout.session.completed` webhook processed successfully
+**Then** Resend sends a "Subscription activated" email to the org owner with: plan name ("Pro"), billing cycle, next payment date
+**And** Resend failure: error logged to Sentry; webhook handler still returns `200` — email failure does not block entitlement activation
+
+**Given** a `customer.subscription.deleted` webhook processed successfully
+**Then** Resend sends a "Subscription cancelled" email to the org owner with: date access ends (end of current billing period)
+**And** Resend failure: same non-blocking behaviour — `200` returned regardless
+
+---
+
+### Story 4.5: JWT Tier Refresh After Upgrade
+
+As a **user who just upgraded to Pro**,
+I want my in-app session to reflect my new tier immediately after payment,
+So that Pro features are accessible without logging out and back in.
+
+**Acceptance Criteria:**
+
+**Given** `orgs.tier` is `"pro"` in DB after `checkout.session.completed` processing
+**When** the client calls POST `/api/v1/auth/refresh` after Stripe's success redirect
+**Then** the new `access_token` JWT payload contains `tier: "pro"` (sourced fresh from DB, not stale JWT cache)
+**And** GET `/api/v1/users/me` returns `{ tier: "pro" }`
+**And** `requireTier('pro')` middleware now passes for subsequent requests
+
+**Given** `orgs.tier` is `"free"` in DB after `customer.subscription.deleted` processing
+**When** the user's `access_token` expires and `/api/v1/auth/refresh` is called
+**Then** the new `access_token` JWT payload contains `tier: "free"`
+**And** Pro-gated endpoints return `403 { error: "Upgrade required", code: "UPGRADE_REQUIRED" }`
+
