@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/project-context.md
@@ -553,4 +553,297 @@ const { name } = req.body
 
 // ❌ Unix timestamp in JSON
 { "createdAt": 1740578200 }
+```
+
+## Project Structure & Boundaries
+
+### Requirements → Structure Mapping
+
+| FR Category | Lives in |
+|---|---|
+| Auth (FR1–6) | `server/src/auth/`, `client/src/components/auth/`, `client/src/pages/` |
+| Funnel Simulation (FR7–14, FR36) | `server/src/funnels/`, `client/src/components/` (existing canvas), `client/src/pages/SimulatorPage.tsx` |
+| Blueprint Library (FR15–20) | `server/src/blueprints/`, `client/src/components/blueprints/` |
+| Workspace & Funnel Mgmt (FR21–22) | `server/src/funnels/`, `client/src/components/workspace/` |
+| Subscription & Billing (FR23–28) | `server/src/billing/`, `client/src/components/billing/` |
+| Export & Reporting (FR29–30) | `server/src/exports/` (Puppeteer queue + pdf-service + S3 upload) |
+| Agency Waitlist (FR31–32) | `server/src/waitlist/` |
+| Compliance & Communication (FR33–35) | `server/src/gdpr/`, `server/src/shared/email-service.ts` |
+
+---
+
+### Complete Project Directory Structure
+
+```
+FunnelShop/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                          # existing — update for v2 test steps
+├── .gitignore
+├── package.json                            # root workspace orchestrator
+│
+├── client/                                 # Vite/React frontend (existing, extended)
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── vitest.config.ts
+│   ├── tsconfig.json
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   ├── eslint.config.js
+│   ├── public/
+│   │   └── vite.svg
+│   └── src/
+│       ├── main.tsx
+│       ├── App.tsx                         # extend with router + Auth.context
+│       ├── index.css
+│       ├── tokens.css                      # existing design tokens (unchanged)
+│       ├── test/
+│       │   └── setup.ts                    # existing Vitest setup
+│       ├── types/
+│       │   └── index.ts                    # existing — extend with v2 types
+│       ├── assets/
+│       ├── lib/
+│       │   └── query-client.ts             # NEW — TanStack Query client instance
+│       ├── contexts/
+│       │   └── Auth.context.tsx            # NEW — userId, orgId, plan from JWT
+│       ├── hooks/                          # NEW — all server state via TanStack Query
+│       │   ├── use-auth.ts
+│       │   ├── use-funnel-list.ts
+│       │   ├── use-blueprint-list.ts
+│       │   └── use-subscription.ts
+│       ├── utils/
+│       │   ├── calculateMetrics.ts         # existing
+│       │   ├── calculateMetrics.test.ts    # existing (co-located)
+│       │   ├── api.ts                      # NEW — typed fetch wrapper, base URL, auth header
+│       │   └── parse-jwt.ts                # NEW — decode JWT claims client-side
+│       ├── components/
+│       │   ├── Canvas.tsx                  # existing v1 (unchanged)
+│       │   ├── ConfigPanel.tsx             # existing v1 (unchanged)
+│       │   ├── ConnectionLine.tsx          # existing v1 (unchanged)
+│       │   ├── MetricsPanel.tsx            # existing v1 (unchanged)
+│       │   ├── MetricsPanel.test.tsx       # existing (co-located)
+│       │   ├── Sidebar.tsx                 # existing v1 (unchanged)
+│       │   ├── auth/                       # NEW
+│       │   │   ├── LoginForm.tsx
+│       │   │   ├── LoginForm.test.tsx
+│       │   │   ├── RegisterForm.tsx
+│       │   │   ├── RegisterForm.test.tsx
+│       │   │   ├── PasswordResetForm.tsx
+│       │   │   └── ProtectedRoute.tsx      # redirects to /login if no auth
+│       │   ├── billing/                    # NEW
+│       │   │   ├── PlanBadge.tsx
+│       │   │   ├── UpgradePrompt.tsx       # shown at Free tier limit (FR10)
+│       │   │   └── BillingHistory.tsx
+│       │   ├── blueprints/                 # NEW
+│       │   │   ├── BlueprintCard.tsx
+│       │   │   ├── BlueprintCard.test.tsx
+│       │   │   ├── BlueprintLibrary.tsx
+│       │   │   └── BlueprintFilter.tsx
+│       │   ├── workspace/                  # NEW
+│       │   │   ├── FunnelCard.tsx
+│       │   │   ├── FunnelCard.test.tsx
+│       │   │   └── FunnelList.tsx
+│       │   └── shared/                     # NEW — cross-cutting UI
+│       │       ├── ProGate.tsx             # entitlement gate wrapper (UI-only)
+│       │       ├── CookieConsent.tsx       # PostHog consent (NFR19)
+│       │       └── ErrorBoundary.tsx
+│       └── pages/                          # NEW — React Router page components
+│           ├── LandingPage.tsx
+│           ├── LoginPage.tsx
+│           ├── RegisterPage.tsx
+│           ├── WorkspacePage.tsx           # funnel list (FR21-22)
+│           ├── SimulatorPage.tsx           # wraps existing v1 canvas
+│           ├── BlueprintLibraryPage.tsx    # FR15-20
+│           ├── PricingPage.tsx             # includes agency waitlist (FR31)
+│           └── SettingsPage.tsx            # profile + billing + GDPR deletion
+│
+└── server/                                 # Express API (brownfield → TypeScript)
+    ├── .env.example                        # existing — extend with all v2 vars (see below)
+    ├── .env                                # not committed
+    ├── package.json                        # update with v2 deps
+    ├── tsconfig.json                       # NEW — added by Story 0 (TS migration)
+    ├── tsup.config.ts                      # NEW — added by Story 0
+    ├── eslint.config.js
+    ├── index.js                            # existing monolith — DELETED by Story 0
+    ├── index.test.js                       # existing tests — MIGRATED by Story 0
+    ├── drizzle/                            # NEW — Drizzle kit config + migrations
+    │   ├── drizzle.config.ts
+    │   └── migrations/                     # generated SQL (version-controlled)
+    │       └── 0000_initial_schema.sql
+    └── src/                                # NEW — all v2 TypeScript source
+        ├── index.ts                        # process entry point (listen)
+        ├── app.ts                          # Express factory: middleware, routes, error handler
+        ├── db/
+        │   ├── client.ts                   # Drizzle + postgres connection pool
+        │   └── schema/
+        │       ├── index.ts                # re-exports all schemas
+        │       ├── users.ts
+        │       ├── organisations.ts
+        │       ├── org-memberships.ts
+        │       ├── refresh-tokens.ts
+        │       ├── funnels.ts
+        │       ├── simulation-results.ts
+        │       ├── client-workspaces.ts
+        │       ├── blueprints.ts
+        │       └── waitlist-entries.ts
+        ├── shared/
+        │   ├── errors.ts                   # ValidationError, AuthError, EntitlementError, NotFoundError
+        │   ├── logger.ts                   # Pino instance + AsyncLocalStorage for requestId
+        │   ├── zod-middleware.ts           # safeParse helper, throws ValidationError on failure
+        │   ├── auth-middleware.ts          # JWT verify → req.auth = { userId, orgId, plan }
+        │   ├── rate-limit-middleware.ts    # express-rate-limit: 60/10 req/min
+        │   └── email-service.ts           # Resend SDK wrapper — typed send functions for all
+        │                                   # transactional emails: verifyEmail(), resetPassword(),
+        │                                   # subscriptionConfirmed(), cancellationConfirmed(),
+        │                                   # accountDeleted(). Used by auth/, billing/, gdpr/.
+        ├── auth/
+        │   ├── auth.router.ts              # POST /api/auth/register, /login, /logout, /refresh,
+        │   │                               #   /verify-email, /forgot-password, /reset-password
+        │   ├── auth-service.ts
+        │   ├── auth-service.test.ts        # Testcontainers
+        │   ├── refresh-token.repository.ts
+        │   └── refresh-token.repository.test.ts
+        ├── funnels/
+        │   ├── funnels.router.ts           # GET/POST /api/funnels, GET/PUT/DELETE /api/funnels/:id,
+        │   │                               #   POST /api/funnels/:id/duplicate
+        │   ├── funnel-service.ts
+        │   ├── funnel-service.test.ts      # Testcontainers (entitlement + org scoping)
+        │   ├── funnel-repository.ts
+        │   └── funnel-repository.test.ts   # pg-mem (query unit tests)
+        ├── blueprints/
+        │   ├── blueprints.router.ts        # GET /api/blueprints, GET /api/blueprints/:id,
+        │   │                               #   GET /api/blueprints/:id/public (unauthenticated)
+        │   ├── blueprint-repository.ts
+        │   └── blueprint-repository.test.ts
+        ├── billing/
+        │   ├── billing.router.ts           # GET /api/billing/subscription, POST /api/billing/upgrade,
+        │   │                               #   POST /api/billing/cancel, GET /api/billing/portal,
+        │   │                               #   GET /api/billing/history
+        │   ├── billing-service.ts
+        │   ├── billing-service.test.ts     # Testcontainers (idempotency)
+        │   └── stripe-webhook.router.ts    # POST /api/webhooks/stripe (raw body, sig verify)
+        ├── exports/
+        │   ├── exports.router.ts           # POST /api/funnels/:id/export
+        │   ├── pdf-service.ts              # Puppeteer render → @aws-sdk/client-s3 upload to Hetzner
+        │   ├── pdf-service.test.ts
+        │   └── puppeteer-queue.ts          # concurrency=1 queue, shared singleton
+        ├── gdpr/
+        │   ├── gdpr.router.ts              # DELETE /api/account
+        │   ├── gdpr-service.ts             # cascade delete in single DB transaction
+        │   └── gdpr-service.test.ts        # Testcontainers (full cascade verification)
+        └── waitlist/
+            ├── waitlist.router.ts          # POST /api/waitlist
+            ├── waitlist-repository.ts
+            └── waitlist-repository.test.ts
+```
+
+---
+
+### Environment Variables (.env.example — complete list)
+
+```bash
+# Server
+NODE_ENV=development
+PORT=3000
+
+# PostgreSQL
+DATABASE_URL=postgresql://user:password@localhost:5432/funnelshop
+
+# Auth
+JWT_SECRET=
+JWT_EXPIRES_IN=30d
+BCRYPT_WORK_FACTOR=12
+
+# Stripe
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRO_PRICE_ID=
+
+# Resend (transactional email)
+RESEND_API_KEY=
+EMAIL_FROM=noreply@funnelshop.io
+
+# Hetzner Object Storage (S3-compatible)
+HETZNER_S3_ENDPOINT=https://fsn1.your-objectstorage.com
+HETZNER_S3_BUCKET=funnelshop-exports
+HETZNER_S3_ACCESS_KEY=
+HETZNER_S3_SECRET_KEY=
+HETZNER_S3_REGION=eu-central
+
+# Sentry
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=development
+
+# PostHog (self-hosted, client-side only)
+VITE_POSTHOG_HOST=https://posthog.funnelshop.io
+VITE_POSTHOG_KEY=
+
+# Operator notifications (agency waitlist)
+OPERATOR_NOTIFY_EMAIL=
+```
+
+---
+
+### Architectural Boundaries
+
+**API Boundaries — auth requirements per router:**
+
+| Router | Prefix | Auth required | Pro only |
+|---|---|---|---|
+| `auth.router` | `/api/auth` | No (public) | No |
+| `funnels.router` | `/api/funnels` | Yes | Partial (save >1, export) |
+| `blueprints.router` | `/api/blueprints` | Partial (`/public` endpoint: No) | Partial (share URL: Pro) |
+| `billing.router` | `/api/billing` | Yes | No |
+| `stripe-webhook.router` | `/api/webhooks/stripe` | No (Stripe sig) | No |
+| `exports.router` | `/api/funnels/:id/export` | Yes | Yes |
+| `gdpr.router` | `/api/account` | Yes | No |
+| `waitlist.router` | `/api/waitlist` | No (public) | No |
+
+**Data Boundaries:**
+
+- All DB reads and writes go through repository functions — no raw SQL in routers or services
+- `req.auth.orgId` is the only valid source for multi-tenancy scoping
+- Drizzle schema in `server/src/db/schema/` is the single source of truth for table shapes
+- Migrations in `server/drizzle/migrations/` are generated by drizzle-kit, never hand-edited
+
+**Integration Points:**
+
+| Service | Location | Direction | Package |
+|---|---|---|---|
+| Stripe | `billing-service.ts`, `stripe-webhook.router.ts` | Outbound (API) + Inbound (webhook) | `stripe` |
+| Resend | `shared/email-service.ts` | Outbound only | `resend` |
+| Sentry | `app.ts` (SDK init), `shared/errors.ts` | Outbound only | `@sentry/node` |
+| PostHog | `client/src/main.tsx` (consent-gated) | Outbound only (client) | `posthog-js` |
+| Puppeteer | `exports/puppeteer-queue.ts` | Internal (headless Chrome) | `puppeteer` |
+| Hetzner Object Storage | `exports/pdf-service.ts` | Outbound (upload), presigned URL returned | `@aws-sdk/client-s3` |
+
+**Data Flow — Funnel PDF Export (most complex path):**
+
+```
+Client POST /api/funnels/:id/export
+  → auth-middleware   (verify JWT → req.auth)
+  → entitlement check (plan === 'pro' → else 403)
+  → puppeteer-queue   (enqueue, await concurrency slot)
+  → pdf-service       (Puppeteer renders funnel URL, captures PDF buffer)
+  → @aws-sdk/client-s3 (PutObjectCommand → Hetzner Object Storage)
+  → GetObjectCommand presigned URL (15-min TTL)
+  → 200 { exportUrl: "https://..." }
+```
+
+**Data Flow — GDPR Account Deletion (compliance-critical path):**
+
+```
+Client DELETE /api/account
+  → auth-middleware (verify JWT → req.auth)
+  → gdpr-service    (single DB transaction):
+      DELETE simulation_results WHERE funnel_id IN (SELECT id FROM funnels WHERE org_id = ?)
+      DELETE funnels WHERE org_id = ?
+      DELETE client_workspaces WHERE org_id = ?
+      DELETE refresh_tokens WHERE user_id = ?
+      DELETE org_memberships WHERE org_id = ?
+      DELETE organisations WHERE id = ?
+      DELETE users WHERE id = ?
+  → email-service.accountDeleted()  (Resend — non-blocking, fire-and-forget)
+  → 204 No Content
 ```
