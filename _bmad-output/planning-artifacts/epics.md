@@ -858,3 +858,78 @@ So that Pro features are accessible without logging out and back in.
 **Then** the new `access_token` JWT payload contains `tier: "free"`
 **And** Pro-gated endpoints return `403 { error: "Upgrade required", code: "UPGRADE_REQUIRED" }`
 
+---
+
+## Epic 5: Blueprint Library
+
+All authenticated users can browse, preview, and apply pre-built funnel blueprints. Pro users can share blueprints via unique public URLs accessible to unauthenticated visitors.
+
+### Story 5.1: Browse and View Blueprints
+
+As an **authenticated user**,
+I want to browse the blueprint library and view blueprint details,
+So that I can find a template relevant to my industry before applying it.
+
+**Acceptance Criteria:**
+
+**Given** GET `/api/v1/blueprints` with a valid session
+**Then** response is `200 [{ blueprintId, name, description, industry, createdAt }, ...]` — only blueprints where `is_active = true`
+**And** response time is ≤2 seconds (NFR3)
+
+**Given** GET `/api/v1/blueprints?industry=ecommerce`
+**Then** response is `200` — filtered to blueprints where `industry = "ecommerce"` only
+
+**Given** GET `/api/v1/blueprints/:id` for an existing active blueprint
+**Then** response is `200 { blueprintId, name, description, industry, canvasState }`
+
+**Given** GET `/api/v1/blueprints/:id` for a non-existent or inactive blueprint
+**Then** response is `404 { error: "Blueprint not found" }`
+
+**Given** an unauthenticated request to either endpoint
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 5.2: Apply Blueprint to New Simulation
+
+As an **authenticated user**,
+I want to apply a blueprint to start a new simulation with sensible defaults,
+So that I don't have to configure all parameters from scratch.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/blueprints/:id/apply` for an existing active blueprint
+**Then** response is `200 { canvasState }` — the blueprint's `canvasState` returned for client-side canvas load
+**And** no `funnels` row is created — client loads the canvas state; user must explicitly save if desired
+**And** the returned `canvasState` is a deep copy — the blueprint's stored state is unchanged regardless of client-side modifications
+
+**Given** POST `/api/v1/blueprints/:id/apply` for a non-existent or inactive blueprint
+**Then** response is `404 { error: "Blueprint not found" }`
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 5.3: Pro User — Generate and Access Public Share URL
+
+As a **Pro user**,
+I want to generate a unique public URL for a blueprint,
+So that I can share it with clients or collaborators who don't have a FunnelShop account.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/blueprints/:id/share` with a valid Pro session
+**Then** response is `200 { shareUrl, slug }` — `slug` is a unique URL-safe string stored in `blueprints.share_slug`
+**And** repeated calls to `/share` for the same blueprint return the same slug (stable — not regenerated on each call)
+
+**Given** POST `/api/v1/blueprints/:id/share` with a Free tier session
+**Then** response is `403 { error: "Upgrade required", code: "UPGRADE_REQUIRED" }`
+
+**Given** GET `/api/v1/blueprints/public/:slug` with no authentication
+**When** the slug exists in `blueprints.share_slug`
+**Then** response is `200 { name, description, industry, canvasState }` — no auth cookie required
+
+**Given** GET `/api/v1/blueprints/public/:slug` for a non-existent slug
+**Then** response is `404 { error: "Blueprint not found" }`
+
