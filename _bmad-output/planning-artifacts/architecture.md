@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3]
+stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/project-context.md
@@ -117,3 +117,154 @@ Zod for all request body/param validation — replaces ad-hoc validation middlew
 | `zod` | Request validation at system boundaries |
 
 **Note:** Server TS migration (Story 0) is the prerequisite that unblocks all other v2 server stories. No v2 server code is written before this story is merged.
+
+## Core Architectural Decisions
+
+### Decision Priority Analysis
+
+**Critical Decisions (Block Implementation):**
+- Server TypeScript migration — gates all v2 server stories
+- PostgreSQL + Drizzle ORM — gates all data persistence stories
+- JWT + DB refresh token table — gates auth story
+- Pino structured logging — ships with auth (required for incident investigation NFR)
+- Hybrid DB test strategy — gates writing any new server tests
+
+**Important Decisions (Shape Architecture):**
+- Puppeteer for PDF generation — drives server memory allocation planning
+- No Redis for v2 — simplifies infrastructure, revisit post-launch with PostHog metrics
+- Zod validation at all request boundaries — shapes every endpoint implementation
+
+**Deferred Decisions (Post-MVP):**
+- Redis caching — deferred until PostHog metrics identify a specific bottleneck
+- CDN for static assets — not required at 1,000 concurrent users on Hetzner
+- Horizontal scaling / load balancer — stateless app layer (NFR17) makes this ready when needed
+
+---
+
+### Data Architecture
+
+**Database:** PostgreSQL (EU-only, Hetzner Falkenstein)
+- Rationale: PRD mandates; relational model fits multi-tenant org/user/funnel hierarchy; strong FK enforcement enables GDPR cascade delete
+
+**ORM:** Drizzle ORM (latest stable) + drizzle-kit for migrations
+- Rationale: TypeScript-first, zero-overhead query builder, schema-as-code, direct Drizzle migrations avoid runtime surprises; supports parameterised queries exclusively (NFR8)
+- Migration approach: `drizzle-kit generate` → version-controlled SQL migration files → `drizzle-kit migrate` on deploy. No schema push in production.
+
+**Driver:** `postgres` (npm) — recommended by Drizzle for Node.js
+
+**Validation:** Zod at all request boundaries (HTTP body, params, query strings). Never trust client input beyond Zod parse.
+
+**Caching:** None for v2. PostgreSQL + `org_id`/`user_id` compound indexes (NFR16) are sufficient at launch scale. Redis added only when PostHog metrics surface a specific query bottleneck.
+
+**Multi-tenancy enforcement:** Every repository function receives `orgId` as an explicit parameter. No query is written without `WHERE org_id = $orgId`. Enforced at the repository layer, not the service layer.
+
+---
+
+### Authentication & Security
+
+**Auth method:** JWT (30-day access token) + refresh token rotation (NFR9)
+- Access token: signed JWT, 30-day expiry, carries `userId` + `orgId` + `plan` claims
+- Refresh token: stored in `refresh_tokens` DB table (hashed), rotated on every use, deleted on logout and GDPR account deletion
+
+**Refresh token storage decision:** DB `refresh_tokens` table
+- Rationale: clean revocation (delete row = immediate invalidation), fits GDPR cascade delete transaction, consistent with DB-first approach, avoids CSRF complexity of httpOnly cookies
+
+**Password hashing:** bcrypt via `bcryptjs` (NFR6). Work factor 12.
+
+**Rate limiting:** `express-rate-limit` middleware — 60 req/min authenticated, 10 req/min unauthenticated (NFR26). Ships in the same PR as auth middleware.
+
+**Stripe webhook security:** Signature verification on every webhook handler (NFR7). Raw body preserved for Stripe HMAC validation before any parsing.
+
+**Multi-tenant isolation:** `org_id` scoping at repository layer (NFR10). Auth middleware extracts `orgId` from JWT and attaches to `req.auth`. All downstream repository calls use `req.auth.orgId` — never a client-supplied org ID.
+
+**PII:** Sentry SDK configured with PII scrubbing enabled (NFR11). No user emails, names, or payment data in error payloads.
+
+---
+
+### API & Communication Patterns
+
+**API style:** REST over HTTPS/TLS 1.2+ (NFR5)
+- URL prefix: `/api/` (no versioning prefix for v2; add `/v2/` if breaking changes arise post-launch)
+- JSON request/response throughout
+
+**Error response standard:**
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "...", "field": "email" } }
+```
+Machine-readable `code` string + human-readable `message`. HTTP status codes semantically correct.
+
+**Route structure:** Modular Express routers — `auth`, `funnels`, `blueprints`, `billing`, `exports`, `gdpr`, `waitlist`. Mounted on `app.use('/api/...')`. Replaces monolithic `server/index.js`.
+
+**Stripe webhook handler:** Separate Express route with raw body parser (`express.raw()`), signature verification before any business logic.
+
+**Transactional email:** Resend SDK (NFR23). Auth emails (verify, reset) retry on failure with Sentry error logging. Non-blocking — email failure does not fail the originating HTTP request, except account verification flow.
+
+---
+
+### Frontend Architecture
+
+**Framework:** React 19 + Vite 7 + TypeScript (existing — unchanged)
+
+**State management:**
+- Server state (funnel list, blueprints, billing info): TanStack Query (React Query) — cache, background refetch, loading/error states without prop drilling
+- UI/local state: React `useState`/`useReducer` — no global client store needed
+- Auth state: React Context (lightweight — just `user`, `plan`, `orgId` from JWT decode)
+
+**Routing:** React Router v7 (existing — extend with protected route wrappers for auth and Pro entitlement guards)
+
+**Pro entitlement gating (frontend):** UI-only — hides/disables features for Free users. Server enforces entitlement independently. Never trust client-side plan state for access control.
+
+**Analytics:** PostHog SDK (self-hosted Hetzner). Does not initialise until explicit cookie consent (NFR19). Non-blocking — SDK failure does not affect app functionality (NFR24).
+
+**Bundle:** Vite handles code splitting. No additional optimisation required at launch scale.
+
+---
+
+### Infrastructure & Deployment
+
+**Hosting:** Hetzner Falkenstein, Germany — EU-only (NFR20)
+- App server: Node.js process (stateless — NFR17, enables horizontal scaling when needed)
+- PostgreSQL: Hetzner managed or self-hosted on dedicated server
+- Object storage: Hetzner Object Storage for Puppeteer-generated PDF exports
+- PostHog: self-hosted on Hetzner
+
+**Logging:** Pino + `pino-http` middleware
+- Rationale: async non-blocking logging (~5x throughput vs Winston) — non-negotiable at 1,000 concurrent users. `pino-http` is one middleware line on the Express app.
+- Every log entry includes: `userId`, `orgId`, `requestId`, `statusCode`, `responseTime`
+- Log level: `info` in production, `debug` in development
+
+**Error monitoring:** Sentry EU region endpoint. PII scrubbing enabled. Non-blocking SDK (NFR25).
+
+**PDF generation:** Puppeteer (headless Chrome)
+- Rationale: renders existing React/SVG funnel diagram directly — no PDF DSL duplication
+- Memory: ~150MB per instance; acceptable on Hetzner
+- Concurrency: capped at 1 Puppeteer instance with an in-process queue for Pro users — keeps PDF generation within NFR4 (< 10s p95)
+- Storage: generated PDFs streamed to Hetzner Object Storage, pre-signed URL returned to client
+
+**Database reliability:** Daily automated backups + PITR enabled (NFR14). Backup storage: Hetzner EU.
+
+**DB test strategy:** Hybrid
+- Testcontainers (real PostgreSQL): integration tests for auth flows, Stripe webhook handlers, GDPR cascade deletion, multi-tenant query scoping — full fidelity where cross-table behaviour matters
+- `pg-mem` (in-memory PG emulator): fast unit tests for repository layer query logic — preserves CI speed
+
+---
+
+### Decision Impact Analysis
+
+**Implementation Sequence (dependency order):**
+1. Server TS migration (Story 0) — unblocks everything
+2. Drizzle schema + PostgreSQL connection + migration pipeline — unblocks all data stories
+3. Auth (JWT + refresh_tokens table + Pino + rate limiting) — unblocks all protected endpoint stories
+4. Billing/Stripe integration — depends on auth (user must exist before subscription)
+5. Funnel CRUD (Pro entitlement enforcement) — depends on auth + billing plan in JWT
+6. Blueprint Library — depends on Drizzle schema (read-only, minimal auth dependency)
+7. PDF export (Puppeteer + object storage) — depends on Funnel CRUD
+8. GDPR account deletion — depends on full schema (must know all tables to cascade)
+9. Agency waitlist — independent of auth (email capture only)
+
+**Cross-Component Dependencies:**
+- Auth JWT claims (`userId`, `orgId`, `plan`) flow into every protected route and repository call
+- `org_id` from JWT is the multi-tenancy enforcer — auth and data architecture are tightly coupled
+- Pino `requestId` context must be threaded through async chains (use `AsyncLocalStorage` or pass explicitly)
+- Puppeteer instance queue is shared infrastructure — PDF export story must implement queue before exposing endpoint
+- Testcontainers setup is a shared test utility — DB test strategy story must land before any integration tests are written
