@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5, 6]
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/project-context.md
@@ -110,7 +110,7 @@ Zod for all request body/param validation — replaces ad-hoc validation middlew
 | `tsx` | Dev server TS runner (replaces nodemon + ts-node) |
 | `stripe` | Stripe SDK for billing + webhooks |
 | `resend` | Transactional email SDK |
-| `winston` | Structured logging with user_id + org_id context |
+| `pino` + `pino-http` | Async structured logging with HTTP middleware; user_id + org_id context via AsyncLocalStorage |
 | `express-rate-limit` | Rate limiting middleware |
 | `jsonwebtoken` + `@types/jsonwebtoken` | JWT auth tokens |
 | `bcryptjs` + `@types/bcryptjs` | Password hashing |
@@ -700,6 +700,7 @@ FunnelShop/
         ├── auth/
         │   ├── auth.router.ts              # POST /api/auth/register, /login, /logout, /refresh,
         │   │                               #   /verify-email, /forgot-password, /reset-password
+        │   │                               #   PUT /api/auth/profile (name, email update)
         │   ├── auth-service.ts
         │   ├── auth-service.test.ts        # Testcontainers
         │   ├── refresh-token.repository.ts
@@ -847,3 +848,152 @@ Client DELETE /api/account
   → email-service.accountDeleted()  (Resend — non-blocking, fire-and-forget)
   → 204 No Content
 ```
+
+---
+
+## Architecture Validation Results
+
+### Coherence Validation ✅
+
+**Decision Compatibility:**
+
+All technology choices are mutually compatible. TypeScript 5.9.3 + tsup + tsx is the canonical Drizzle/Express pairing. Express 5 + pino-http have no conflicts. `@aws-sdk/client-s3` with a custom endpoint is the documented method for Hetzner Object Storage (S3-compatible). React 19 + TanStack Query v5 + React Router v7 are all React 19-compatible. Testcontainers + pg-mem + Vitest operates as a compatible hybrid (pg-mem for unit-level query tests, Testcontainers for integration-level service tests).
+
+One residual inconsistency corrected during validation: the Step 3 packages table listed `winston` as the logging library; Step 4 decided Pino. The packages table has been updated to `pino` + `pino-http`.
+
+**Pattern Consistency:**
+
+All patterns are consistent:
+- DB snake_case → TS camelCase enforced via Drizzle column mapping throughout
+- Zod validation at router entry → typed objects flow downstream — no re-validation needed
+- `req.auth.orgId` as the only valid tenancy scope source — enforced via auth-middleware, documented with anti-pattern
+- Co-located test files (`*.test.ts` alongside source) consistent across server/ and client/
+- Feature-based module layout consistent: each domain owns its own router, service, and repository
+
+**Structure Alignment:**
+
+The project structure fully supports all architectural decisions. `shared/email-service.ts` is explicit. `@aws-sdk/client-s3` is in the integration table with its Hetzner-specific usage pattern. All eight FR categories map to specific directories. All `.env` variables are enumerated. API boundary table specifies auth requirements and Pro entitlement per router.
+
+---
+
+### Requirements Coverage Validation ✅
+
+**Functional Requirements — 36/36 covered:**
+
+All FRs map to explicit files and routes. FR6 (profile update) gap addressed: `PUT /api/auth/profile` added to `auth.router.ts` comment block. FR36 (duplicate funnel) explicitly listed in `funnels.router.ts` as `POST /api/funnels/:id/duplicate`. Blueprint public share URL (FR20) covered by unauthenticated `/api/blueprints/:id/public` endpoint. Waitlist (FR31–32) has dedicated `waitlist.router.ts`.
+
+**Non-Functional Requirements — 26/26 covered:**
+
+| NFR | Architectural mechanism |
+|---|---|
+| Performance budgets (NFR1–4) | Drizzle compound indexes + stateless app + Puppeteer concurrency queue |
+| Security (NFR5–11) | Hetzner TLS + bcrypt 12 + Stripe sig verify + Drizzle parameterised queries + JWT rotation + Sentry PII scrub |
+| Scalability (NFR15–17) | Stateless Express + PostgreSQL horizontal read replicas (future) |
+| GDPR (NFR18–21) | Single-transaction cascade delete + EU-only Hetzner + CookieConsent gate |
+| Reliability (NFR22–25) | Resend retry in email-service.ts + non-blocking Sentry/PostHog SDKs |
+| Rate limiting (NFR26) | `rate-limit-middleware.ts` (express-rate-limit: 60 req/10 min) |
+
+---
+
+### Implementation Readiness Validation ✅
+
+**Decision Completeness:**
+
+All critical decisions are documented with justifications. Package versions are specified for all primary dependencies. The anti-pattern catalogue (7 forbidden patterns with code examples) gives AI agents concrete negative examples to avoid, not just positive guidance. The DB design step includes index strategy per table, not just schema.
+
+**Structure Completeness:**
+
+The directory tree is specific down to individual files — no generic "components/" placeholders. Every file has an inline comment describing its responsibility. All integration points specify the exact source file (`pdf-service.ts → @aws-sdk/client-s3`) and direction (outbound/inbound). The `.env.example` block is complete and ready to ship.
+
+**Pattern Completeness:**
+
+Four naming layers are fully specified (DB, API route, server TypeScript, client TypeScript). Error handling is end-to-end: typed error classes → global Express error handler → Sentry capture → client-facing JSON shape. Auth pattern covers JWT decode, refresh rotation, and `req.auth` typing. Test pattern covers co-location, Testcontainers lifecycle, pg-mem swap-in, and Vitest/Jest co-existence.
+
+---
+
+### Gap Analysis Results
+
+| Priority | Gap | Resolution |
+|---|---|---|
+| Must fix | `winston` in packages table contradicts Pino decision | Fixed: table updated to `pino` + `pino-http` |
+| Minor | FR6 `PUT /api/auth/profile` missing from router comment | Fixed: added to `auth.router.ts` comment block |
+| Nice-to-have | `@sentry/node` and `pino-http` not in Step 3 packages table | Acceptable: both appear in integration table and architecture text — not a blocking gap |
+| Nice-to-have | No detailed CI/CD pipeline steps | Acceptable: `ci.yml` noted as existing and to be updated during Story 0 |
+
+No critical blocking gaps remain.
+
+---
+
+### Architecture Completeness Checklist
+
+**✅ Requirements Analysis**
+
+- [x] Project context and brownfield constraints thoroughly analyzed
+- [x] Scale and complexity assessed (1k concurrent users, 100k row queries)
+- [x] Technical constraints identified (EU-only, GDPR, Stripe-only billing)
+- [x] Cross-cutting concerns mapped (multi-tenancy, auth, rate limiting, email)
+
+**✅ Architectural Decisions**
+
+- [x] Critical decisions documented with rationale
+- [x] Technology stack fully specified (packages + versions where relevant)
+- [x] Integration patterns defined for all 6 external services
+- [x] Performance considerations addressed at architecture level
+
+**✅ Implementation Patterns**
+
+- [x] Naming conventions established across all 4 layers (DB / API / server TS / client TS)
+- [x] Structure patterns defined (feature-based modules, co-located tests)
+- [x] Communication patterns specified (auth header, orgId scoping, error shape)
+- [x] Process patterns documented (error handling, Zod middleware, refresh rotation)
+- [x] Anti-patterns catalogued with code examples (7 forbidden patterns)
+
+**✅ Project Structure**
+
+- [x] Complete directory structure defined to file level
+- [x] Component boundaries established (router → service → repository)
+- [x] All 6 integration points mapped to specific source files
+- [x] Requirements-to-structure mapping complete (FR category → directory)
+- [x] Environment variables enumerated in `.env.example` block
+
+---
+
+### Architecture Readiness Assessment
+
+**Overall Status: READY FOR IMPLEMENTATION**
+
+**Confidence Level: High**
+
+All 36 FRs and 26 NFRs have explicit architectural support. The directory tree is specific enough for AI agents to generate files without ambiguity. All integration points have named packages and source locations. The anti-pattern catalogue prevents the most common multi-tenant and auth mistakes. Both data flow diagrams (PDF export, GDPR cascade) cover the two most complex request paths end-to-end.
+
+**Key Strengths:**
+
+- Feature-based module layout makes each domain independently navigable for AI agents
+- `shared/email-service.ts` is explicit with named functions — no implicit Resend usage
+- Anti-pattern catalogue with code examples prevents the most common architectural drift
+- Hybrid test strategy (pg-mem for unit speed, Testcontainers for integration correctness) is fully specified
+- Hetzner Object Storage integration documented with correct `@aws-sdk/client-s3` custom-endpoint pattern
+
+**Areas for Future Enhancement (post-v2):**
+
+- Horizontal read replica config for PostgreSQL at sustained load
+- CDN layer in front of Hetzner Object Storage for PDF exports if download volume grows
+- Webhook retry queue (currently Stripe handles retries; consider Bull/BullMQ if internal async jobs are added)
+- Feature flag system if A/B testing of Pro tier features is needed
+
+---
+
+### Implementation Handoff
+
+**AI Agent Guidelines:**
+
+- Follow all architectural decisions exactly as documented — decisions include justifications, not arbitrary choices
+- Use naming conventions from Step 4 consistently across all components — DB snake_case, API kebab-case, TS camelCase, React PascalCase
+- Enforce `req.auth.orgId` as the only valid source for multi-tenancy scoping — never trust request body or params for org identity
+- All DB reads and writes go through repository functions — no raw SQL in routers or services
+- Refer to the anti-pattern catalogue in Step 5 before implementing any auth, error handling, or logging code
+- Co-locate test files with source files throughout
+
+**First Implementation Priority:**
+
+Story 0 (TypeScript migration + tooling bootstrap): establish `server/src/`, `tsconfig.json`, `tsup.config.ts`, Drizzle config, and CI pipeline update before any feature work begins. All subsequent stories depend on this foundation.
