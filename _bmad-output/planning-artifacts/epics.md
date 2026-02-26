@@ -583,3 +583,155 @@ So that production debugging is fast and PII-safe.
 **Given** a `FunnelLimitError` thrown inside a route handler and caught by the handler's catch block
 **Then** response is `403 { error: "Funnel limit reached", code: "FUNNEL_LIMIT_REACHED" }` — not a 500
 
+---
+
+## Epic 3: Funnel Persistence & Workspace
+
+Authenticated users can save, name, duplicate, rename, and delete their funnel simulations in a personal workspace. Free users are capped at 1 saved funnel with an upgrade prompt at the limit; Pro users save unlimited funnels.
+
+### Story 3.1: Save Funnel to Workspace
+
+As an **authenticated user**,
+I want to save my current funnel simulation to my workspace with a name,
+So that I can return to it later without losing my work.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/funnels` with `{ name, canvasState }` and a valid session (Free tier, 0 funnels saved)
+**When** the request is processed
+**Then** response is `201 { funnelId, name, orgId, createdAt }`
+**And** a `funnels` row is created with `org_id` from JWT; `canvas_state` stored as JSONB
+
+**Given** a Free tier user who already has 1 saved funnel
+**When** POST `/api/v1/funnels` is called
+**Then** response is `403 { error: "Funnel limit reached", code: "FUNNEL_LIMIT_REACHED" }`
+**And** no funnel row is created
+
+**Given** a Pro tier user with any number of existing funnels
+**When** POST `/api/v1/funnels` is called
+**Then** response is `201` — no cap enforced (FR22: unlimited for Pro)
+
+**Given** `name` exceeds 100 characters
+**Then** response is `400 { error: "Name must be 100 characters or fewer", field: "name" }`
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 3.2: List and Load Saved Funnels
+
+As an **authenticated user**,
+I want to see all my saved funnels and open any one of them,
+So that I can manage and continue my work from where I left off.
+
+**Acceptance Criteria:**
+
+**Given** GET `/api/v1/funnels` with a valid session
+**Then** response is `200 [{ funnelId, name, createdAt, updatedAt }, ...]` — only funnels scoped to the authenticated user's `orgId`
+**And** response time is ≤3 seconds for a workspace with up to 500 funnels (NFR2)
+
+**Given** a workspace with no saved funnels
+**Then** response is `200 []`
+
+**Given** GET `/api/v1/funnels/:id` for a funnel belonging to the authenticated user's org
+**Then** response is `200 { funnelId, name, canvasState, createdAt, updatedAt }`
+
+**Given** GET `/api/v1/funnels/:id` for a funnel belonging to a different org
+**Then** response is `404 { error: "Funnel not found" }` — not 403 (no information leak)
+
+**Given** an unauthenticated request to either endpoint
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 3.3: Rename and Delete Saved Funnels
+
+As an **authenticated user**,
+I want to rename or delete a saved funnel,
+So that I can keep my workspace organised.
+
+**Acceptance Criteria:**
+
+**Given** PATCH `/api/v1/funnels/:id` with `{ name: "New Name" }` for an org-owned funnel
+**Then** response is `200 { funnelId, name, updatedAt }`
+**And** `funnels.name` updated in DB; `funnels.updated_at` refreshed
+
+**Given** DELETE `/api/v1/funnels/:id` for an org-owned funnel
+**Then** response is `204`
+**And** the `funnels` row is deleted; associated `simulation_results` rows also deleted (cascade)
+
+**Given** PATCH or DELETE on a funnel belonging to a different org
+**Then** response is `404 { error: "Funnel not found" }` — not 403 (no information leak)
+
+**Given** `name` exceeds 100 characters in PATCH
+**Then** response is `400 { error: "Name must be 100 characters or fewer", field: "name" }`
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 3.4: Save and Retrieve Simulation Results
+
+As an **authenticated user**,
+I want my simulation results saved alongside my funnel and retrievable as history,
+So that I can review past outputs without re-running the simulation.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/funnels/:funnelId/simulations` with `{ resultSnapshot }` for an org-owned funnel
+**Then** response is `201 { simulationId, funnelId, createdAt }`
+**And** a `simulation_results` row is inserted with `org_id` from JWT and `result_snapshot` as JSONB
+
+**Given** GET `/api/v1/funnels/:funnelId/simulations` for an org-owned funnel
+**Then** response is `200 [{ simulationId, createdAt }, ...]` ordered by `createdAt DESC`
+
+**Given** GET `/api/v1/funnels/:funnelId/simulations/:simulationId` for an org-owned funnel
+**Then** response is `200 { simulationId, funnelId, resultSnapshot, createdAt }`
+
+**Given** either endpoint called with a `funnelId` belonging to a different org
+**Then** response is `404 { error: "Funnel not found" }`
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 3.5: Duplicate Funnel
+
+As a **Free tier user**,
+I want to duplicate a saved funnel as a new unsaved simulation,
+So that I can explore variations without consuming my single save slot or losing my original.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/funnels/:id/duplicate` for an org-owned funnel
+**Then** response is `200 { canvasState }` — the original funnel's `canvasState` returned for client-side canvas load
+**And** no new `funnels` row is created — client receives the canvas state only; user must explicitly save if desired
+
+**Given** POST `/api/v1/funnels/:id/duplicate` for a funnel belonging to a different org
+**Then** response is `404 { error: "Funnel not found" }`
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+### Story 3.6: Free Tier Upgrade Prompt (Client)
+
+As a **Free tier user who has reached the funnel limit**,
+I want to see a clear upgrade prompt when I try to save another funnel,
+So that I understand my limit and have a direct path to upgrade.
+
+**Acceptance Criteria:**
+
+**Given** the save-funnel API returns `403` with `code: "FUNNEL_LIMIT_REACHED"`
+**When** the client receives the response
+**Then** an upgrade modal is rendered — not a generic error toast
+**And** the modal displays: current plan (Free), limit (1 saved funnel), and a CTA button linking to the upgrade/pricing flow
+**And** dismissing the modal returns the user to the canvas with unsaved canvas state preserved (no data loss)
+
+**Given** a Pro tier user saves a funnel and the API returns `201`
+**Then** no upgrade modal is shown; the save confirmation is displayed normally
+
