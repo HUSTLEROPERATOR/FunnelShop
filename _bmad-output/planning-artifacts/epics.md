@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-validate-prerequisites', 'step-02-design-epics']
+stepsCompleted: ['step-01-validate-prerequisites', 'step-02-design-epics', 'step-03-create-stories']
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
@@ -932,4 +932,148 @@ So that I can share it with clients or collaborators who don't have a FunnelShop
 
 **Given** GET `/api/v1/blueprints/public/:slug` for a non-existent slug
 **Then** response is `404 { error: "Blueprint not found" }`
+
+---
+
+## Epic 6: PDF Export
+
+Enable Pro users to export a funnel simulation as a professionally formatted PDF report for offline sharing and client presentations.
+
+### Story 6.1: Pro User — Export Funnel Simulation as PDF
+
+As a **Pro user**,
+I want to export a funnel simulation as a PDF report,
+So that I can share results with clients who don't have a FunnelShop account.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/export/pdf` with body `{ funnelId, simulationId }` and a valid Pro session
+**When** the funnel belongs to the authenticated user's org and the simulation result exists
+**Then** response is `200` with `Content-Type: application/pdf` and a binary PDF body
+
+**Given** POST `/api/v1/export/pdf` with a valid Free tier session
+**Then** response is `403 { error: "Upgrade required", code: "UPGRADE_REQUIRED" }`
+
+**Given** POST `/api/v1/export/pdf` where `funnelId` belongs to a different org
+**Then** response is `404 { error: "Funnel not found" }` (tenant isolation — no ownership leak)
+
+**Given** Puppeteer rendering exceeds 15 seconds
+**Then** response is `504 { error: "Export timed out" }` and the Puppeteer instance is force-closed
+
+**Given** a successful PDF generation
+**Then** any temporary file written under `/tmp` during rendering is deleted before the response is sent
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+---
+
+## Epic 7: Agency Waitlist
+
+Capture prospective agency-tier interest via a public email form and notify the operator so demand can be gauged before the tier is built.
+
+### Story 7.1: Agency Waitlist Email Capture + Operator Notification
+
+As a **prospective agency customer**,
+I want to register my interest in the Agency plan,
+So that I am notified when it becomes available.
+
+**Acceptance Criteria:**
+
+**Given** POST `/api/v1/waitlist` with body `{ email: "user@example.com" }` (no auth required)
+**When** the email is not already registered in the waitlist table
+**Then** response is `201 { message: "Added to waitlist" }` and a row is inserted into `agency_waitlist`
+
+**Given** POST `/api/v1/waitlist` with an email already present in the waitlist
+**Then** response is `200 { message: "Already registered" }` (idempotent — no duplicate row created)
+
+**Given** a successful waitlist registration
+**Then** a Resend email is dispatched to the operator address configured in `WAITLIST_NOTIFY_EMAIL` env var
+
+**Given** the Resend API call fails
+**Then** the `201` response is still returned and the failure is logged — the waitlist row is not rolled back
+
+**Given** POST `/api/v1/waitlist` with an invalid email format (e.g. missing `@`)
+**Then** response is `400 { error: "Invalid email" }`
+
+**Given** unauthenticated requests to POST `/api/v1/waitlist`
+**Then** the endpoint is publicly accessible — no auth cookie required
+
+**Given** the endpoint is called more than 10 times per minute from the same IP
+**Then** subsequent requests within that window return `429 { error: "Too many requests" }`
+
+---
+
+## Epic 8: GDPR Compliance
+
+Ensure FunnelShop meets baseline GDPR obligations: informed consent before analytics collection, a complete self-service account deletion cascade, and documented PII handling for the operator.
+
+### Story 8.1: Cookie Consent Banner + PostHog Consent Gate
+
+As a **visitor or logged-in user**,
+I want to accept or decline analytics cookies,
+So that my data is not processed without my consent.
+
+**Acceptance Criteria:**
+
+**Given** a user visits the app for the first time (no consent cookie present)
+**Then** a cookie consent banner is displayed before any PostHog `posthog.init()` call is made
+
+**Given** the user clicks "Accept"
+**Then** PostHog is initialised, a consent cookie `ph_consent=true` is set (1-year expiry), and the banner is dismissed
+**And** PATCH `/api/v1/users/me/consent` is called with `{ analytics: true }` updating `users.analytics_consent` to `true`
+
+**Given** the user clicks "Decline"
+**Then** PostHog is NOT initialised, a cookie `ph_consent=false` is set (1-year expiry), and the banner is dismissed
+**And** PATCH `/api/v1/users/me/consent` is called with `{ analytics: false }` (or skipped for unauthenticated users)
+
+**Given** `ph_consent=true` is present in cookies on page load
+**Then** PostHog initialises immediately without showing the banner
+
+**Given** PostHog initialisation throws or the PostHog CDN is unavailable
+**Then** the app continues to function normally — consent gate failure must not block the UI
+
+### Story 8.2: Self-Service Account Deletion with Cascade
+
+As a **registered user**,
+I want to permanently delete my account and all associated data,
+So that FunnelShop holds no personal data about me.
+
+**Acceptance Criteria:**
+
+**Given** DELETE `/api/v1/users/me` with a valid session
+**When** the user has an active Stripe subscription
+**Then** the Stripe subscription is cancelled via the Stripe API before the DB transaction begins
+**And** if the Stripe cancellation fails, the deletion is aborted and `500 { error: "Failed to cancel subscription" }` is returned — no partial deletion
+
+**Given** DELETE `/api/v1/users/me` with a valid session and no active Stripe subscription
+**Then** a single DB transaction deletes rows in this order: `simulation_results` → `funnels` → `blueprints` → `org_memberships` → `user_sessions` → `email_verification_tokens` → `processed_stripe_events` → `orgs` (only if user is the sole member) → `users`
+**And** response is `200 { message: "Account deleted" }`
+
+**Given** any step in the DB transaction fails
+**Then** the entire transaction is rolled back — no partial deletion occurs
+**And** response is `500 { error: "Deletion failed" }`
+
+**Given** the deletion succeeds
+**Then** the user's auth cookies are cleared in the response headers
+
+**Given** an unauthenticated request
+**Then** response is `401 { error: "Unauthorized" }`
+
+### Story 8.3: Sentry PII Scrubbing + GDPR Operator Checklist
+
+As the **operator (FunnelShop team)**,
+I want Sentry to strip PII from error reports and a GDPR checklist to exist in the repo,
+So that we can comply with GDPR accountability obligations and avoid leaking user data to third-party error tracking.
+
+**Acceptance Criteria:**
+
+**Given** a Sentry error event is captured on the client
+**Then** the `beforeSend` hook strips `email`, `password`, `token`, and `Authorization` fields from request headers and user context before the event is transmitted to Sentry
+
+**Given** the Sentry DSN is configured
+**Then** it points to an EU-region Sentry endpoint (DSN hostname is `o*.ingest.de.sentry.io` or equivalent EU endpoint)
+
+**Given** the repository root
+**Then** a file `docs/gdpr-checklist.md` exists documenting: (1) all third-party DPAs in place (Stripe, Sentry, Resend, PostHog), (2) the deletion cascade order from Story 8.2, (3) confirmation that data is stored in EU region, (4) instructions for handling a GDPR data subject access request (DSAR)
 
