@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2]
+stepsCompleted: [1, 2, 3]
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/project-context.md
@@ -67,3 +67,53 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 6. **TypeScript server migration**: Gates all new server implementation; must be resolved before any v2 server story begins.
 7. **Structured logging**: Winston/Pino with user ID + org ID context on all request and error paths — required for incident investigation (Journey 3A).
 8. **Stripe webhook reliability**: Idempotency key handling on all webhook handlers; duplicate delivery must not create duplicate subscription state.
+
+## Starter Template Evaluation
+
+### Primary Technology Domain
+
+Full-stack SaaS (React/Vite frontend + Express/Node.js API) — brownfield extension of v1 codebase.
+
+### Starter Options Considered
+
+No new project scaffold is applicable. This is a brownfield project with an established v1 codebase. The "starter" decision is the server TypeScript migration approach, which is the #1 prerequisite gating all v2 server implementation.
+
+### Selected Approach: Server TS Migration via tsup + tsx
+
+**Rationale:** The project-context explicitly flags server TS migration as the prerequisite for all v2 server implementation. `tsup` (esbuild-powered) + `tsx` is the current standard for Express/Node TypeScript projects — fast builds, zero config, ESM output, source maps.
+
+**Initialization — Story 0 (must be first):**
+Server TS migration is the first implementation story. No new v2 server code is written until this story is complete and merged.
+
+**Architectural Decisions Provided by Migration:**
+
+**Language & Runtime:**
+All new server files are TypeScript (`.ts`), ESM `import`/`export`. Server transitions from CommonJS `require()` to ESM.
+
+**Build Tooling:**
+- `tsup` (esbuild-powered) for production builds — zero config, fast, source maps, ESM output
+- `tsx --watch` for dev hot reload (replaces `nodemon` + `ts-node` combo)
+- `tsc --noEmit` for type checking only (not used as compiler)
+- Output compiled to `dist/` for production
+
+**Validation Layer:**
+Zod for all request body/param validation — replaces ad-hoc validation middleware, provides type-safe parse at system boundaries.
+
+**New Packages for v2:**
+
+| Package | Purpose |
+|---|---|
+| `drizzle-orm` | TypeScript ORM — PostgreSQL, zero-dep, type-safe schema |
+| `drizzle-kit` | Migration CLI + schema management |
+| `postgres` | PostgreSQL driver (recommended by Drizzle for Node) |
+| `tsup` | Server build tooling (esbuild-powered) |
+| `tsx` | Dev server TS runner (replaces nodemon + ts-node) |
+| `stripe` | Stripe SDK for billing + webhooks |
+| `resend` | Transactional email SDK |
+| `winston` | Structured logging with user_id + org_id context |
+| `express-rate-limit` | Rate limiting middleware |
+| `jsonwebtoken` + `@types/jsonwebtoken` | JWT auth tokens |
+| `bcryptjs` + `@types/bcryptjs` | Password hashing |
+| `zod` | Request validation at system boundaries |
+
+**Note:** Server TS migration (Story 0) is the prerequisite that unblocks all other v2 server stories. No v2 server code is written before this story is merged.
