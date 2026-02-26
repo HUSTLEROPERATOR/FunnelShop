@@ -227,3 +227,32 @@ Users have full, self-serve control over their data: they can manage cookie and 
 **FRs covered:** FR6, FR34, FR35
 **NFRs addressed:** NFR18 (deletion cascade <24h, target: immediate), NFR19 (PostHog consent-gated init), NFR20 (EU-only data), NFR21 (DPAs with Stripe/Resend/Sentry), NFR11 (Sentry PII scrubbing)
 
+---
+
+## Epic 0: Server TypeScript Migration (Prerequisite)
+
+Migrate the `/server` package from CommonJS JavaScript to TypeScript + ESM, establishing the type-safe foundation required for all v2 server-side development. Hard prerequisite — no v2 server code is written until this epic is complete.
+
+### Story 0.1: Migrate Server to TypeScript + ESM
+
+As a **developer**,
+I want the `/server` package migrated from CommonJS JavaScript to TypeScript + ESM,
+So that all v2 server code is type-safe and compatible with Drizzle ORM, Stripe SDK types, and JWT payload typing.
+
+**Acceptance Criteria:**
+
+**Given** the v1 server is plain CommonJS JavaScript
+**When** the migration is complete
+**Then** `/server/package.json` contains `"type": "module"`
+**And** all server source files are renamed from `.js` → `.ts`
+**And** `/server/tsconfig.json` exists with `strict: true`, `target: "ES2022"`, `module: "NodeNext"`
+**And** all `require()` calls replaced with `import`; all `module.exports` replaced with `export`
+**And** `scripts.dev` = `tsx watch index.ts`, `scripts.build` = `tsc`, `scripts.start` = `node dist/index.js`
+**And** Jest configured for TypeScript via `ts-jest` or `@swc/jest`; `npm test` from root passes with all existing tests green
+**And** `npm run build` completes with zero TypeScript errors
+**And** `/server/eslint.config.js` updated for TypeScript ESM — `typescript-eslint` rules applied, no `.eslintrc` format used
+**And** `tsup.config.ts` scaffolded at `/server/tsup.config.ts` for production builds
+**And** `/server/.env.example` updated with `DATABASE_URL=postgresql://user:password@localhost:5432/funnelshop` placeholder (required by E2)
+**And** `GET /api/scenarios` (v1 regression endpoint) returns 200 with correct data — no v1 functionality broken
+**And** Jest coverage report shows ≥92.5% coverage — no regression from v1 baseline
+
