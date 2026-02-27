@@ -1,0 +1,145 @@
+# generated: 2026-02-27
+# project: FunnelShop
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Starting story: E0 Story 0.1 (Server TS migration) — first story to be implemented
+
+generated: 2026-02-27
+project: FunnelShop
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 0: Server TypeScript Migration
+  # Prerequisite for ALL v2 server work. No FRs — technical foundation.
+  # Dependencies: None
+  # ─────────────────────────────────────────────────────────
+  epic-0: in-progress
+  0-1-typescript-and-esm-build-toolchain-setup: backlog
+  0-2-migrate-all-existing-server-modules-to-esm-typescript: backlog
+  epic-0-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 1: User Authentication & Account Management
+  # FRs: FR1-FR6, FR33 | NFRs: NFR5, NFR6, NFR9, NFR23, NFR26
+  # Dependencies: E0
+  # ─────────────────────────────────────────────────────────
+  epic-1: backlog
+  1-1-user-registration-with-email-verification-dispatch: backlog
+  1-2-email-verification: backlog
+  1-3-login-logout-token-refresh-and-auth-middleware: backlog
+  1-4-password-reset: backlog
+  1-5-profile-management: backlog
+  1-6-account-deletion: backlog
+  epic-1-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 2: PostgreSQL + Drizzle + Multi-Tenant Schema
+  # Infrastructure — no direct FRs | NFRs: NFR8, NFR10, NFR14, NFR16, NFR17, NFR20
+  # Dependencies: E0, E1
+  # ─────────────────────────────────────────────────────────
+  epic-2: backlog
+  2-1-drizzle-orm-formalisation-and-auth-schema-migration: backlog
+  2-2-business-entity-schema-funnels-and-workspace: backlog
+  2-3-supporting-tables-schema-blueprints-waitlist-and-stripe-idempotency: backlog
+  epic-2-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 3: Funnel Simulation & Workspace
+  # FRs: FR7-FR14, FR21, FR22, FR36 | NFRs: NFR1, NFR2, NFR15, NFR16
+  # Dependencies: E0, E1, E2
+  # ─────────────────────────────────────────────────────────
+  epic-3: backlog
+  3-1-funnel-simulation-engine-compute-and-display-results: backlog
+  3-2-save-rename-and-delete-funnel-simulations: backlog
+  3-3-free-tier-cap-and-upgrade-prompt: backlog
+  3-4-workspace-view-and-load-saved-funnels: backlog
+  3-5-duplicate-funnel-as-new-unsaved-simulation: backlog
+  epic-3-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 4: Subscription & Billing
+  # FRs: FR23-FR28 | NFRs: NFR7, NFR13, NFR21, NFR22
+  # Dependencies: E0, E1, E2
+  # Note: E3 and E4 can proceed in parallel after E2
+  # ─────────────────────────────────────────────────────────
+  epic-4: backlog
+  4-1-upgrade-to-pro-via-stripe-checkout: backlog
+  4-2-billing-portal-view-plan-and-manage-payment-method: backlog
+  4-3-subscription-cancellation-and-webhook-lifecycle-handling: backlog
+  4-4-billing-history: backlog
+  epic-4-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 5: Blueprint Library
+  # FRs: FR15-FR20 | NFRs: NFR3
+  # Dependencies: E0, E1, E2, E3
+  # ─────────────────────────────────────────────────────────
+  epic-5: backlog
+  5-1-browse-and-view-blueprints: backlog
+  5-2-apply-blueprint-to-simulation: backlog
+  5-3-pro-blueprint-sharing-via-public-url: backlog
+  epic-5-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 6: PDF Export
+  # FRs: FR29, FR30 | NFRs: NFR4
+  # Dependencies: E0, E1, E2, E3, E4 (Pro tier required)
+  # ─────────────────────────────────────────────────────────
+  epic-6: backlog
+  6-1-pdf-export-of-simulation-report: backlog
+  epic-6-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 7: Agency Waitlist
+  # FRs: FR31, FR32
+  # Dependencies: E0, E2
+  # Note: Can be worked in parallel with E3/E4 after E2
+  # ─────────────────────────────────────────────────────────
+  epic-7: backlog
+  7-1-agency-tier-waitlist-signup-and-operator-notification: backlog
+  epic-7-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────
+  # Epic 8: GDPR & Privacy Compliance
+  # FRs: FR34, FR35 | NFRs: NFR11, NFR18, NFR19, NFR20, NFR21
+  # Dependencies: E0, E1, E2
+  # Note: Can be worked in parallel with E3/E4 after E2
+  # ─────────────────────────────────────────────────────────
+  epic-8: backlog
+  8-1-cookie-and-analytics-consent-management: backlog
+  8-2-self-serve-gdpr-data-deletion-request: backlog
+  epic-8-retrospective: optional
