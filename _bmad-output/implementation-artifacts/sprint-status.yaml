@@ -48,7 +48,7 @@ development_status:
   # Dependencies: None
   # ─────────────────────────────────────────────────────────
   epic-0: in-progress
-  0-1-typescript-and-esm-build-toolchain-setup: backlog
+  0-1-typescript-and-esm-build-toolchain-setup: ready-for-dev
   0-2-migrate-all-existing-server-modules-to-esm-typescript: backlog
   epic-0-retrospective: optional
 
