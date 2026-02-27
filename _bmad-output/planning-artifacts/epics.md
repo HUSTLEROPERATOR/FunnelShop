@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-validate-prerequisites', 'step-02-design-epics', 'step-03-create-stories']
+stepsCompleted: ['step-01-validate-prerequisites', 'step-02-design-epics', 'step-03-create-stories', 'step-04-final-validation']
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
@@ -381,6 +381,7 @@ So that my session is protected and managed without exposing tokens to client-si
 **Given** a user has a verified account
 **When** the user submits `POST /api/v1/auth/login` with valid credentials
 **Then** a JWT access token is issued as an `httpOnly`, `SameSite=Strict`, `Secure` cookie with 15-minute expiry
+**And** the `user_sessions` table is created as part of this story (migration: `id`, `user_id` FK, `token_hash`, `expires_at`, `created_at`)
 **And** a refresh token is stored in the `user_sessions` table with 30-day expiry and returned as a separate `httpOnly` cookie
 **And** the JWT payload contains `{ userId, orgId, role, tier }` — all entitlement checks derive from this
 **And** login with an unrecognised email or wrong password returns `401 Unauthorized` with a generic message (no user enumeration)
