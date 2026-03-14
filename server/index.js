@@ -281,9 +281,9 @@ const server = app.listen(PORT, () => {
 ╔════════════════════════════════════════════════════╗
 ║  🚀 FunnelShop Server is running!                 ║
 ╠════════════════════════════════════════════════════╣
-║  📍 URL: http://localhost:${PORT}${' '.repeat(29 - PORT.toString().length)}║
-║  🌍 Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(32 - (process.env.NODE_ENV || 'development').length)}║
-║  🔗 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}${' '.repeat(30 - (process.env.CORS_ORIGIN || 'http://localhost:3000').length)}║
+║  📍 URL: http://localhost:${PORT}${' '.repeat(Math.max(0, 29 - PORT.toString().length))}║
+║  🌍 Environment: ${process.env.NODE_ENV || 'development'}${' '.repeat(Math.max(0, 32 - (process.env.NODE_ENV || 'development').length))}║
+║  🔗 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}${' '.repeat(Math.max(0, 30 - (process.env.CORS_ORIGIN || 'http://localhost:3000').length))}║
 ╚════════════════════════════════════════════════════╝
   `);
 });
