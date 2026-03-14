@@ -1,0 +1,58 @@
+{
+  "id": "restaurant-ads-funnel",
+  "name": "Restaurant Ads Funnel",
+  "description": "Drive local diners from paid ads to reservations and a follow-up email sequence.",
+  "components": [
+    {
+      "id": "restaurant-google-ads",
+      "type": "google-ads",
+      "name": "Google Ads Campaign",
+      "position": { "x": 80, "y": 120 },
+      "properties": { "cpc": 2.2, "budget": 4500 }
+    },
+    {
+      "id": "restaurant-landing-page",
+      "type": "landing-page",
+      "name": "Reservation Landing Page",
+      "position": { "x": 330, "y": 120 },
+      "properties": { "conversionRate": 0.18 }
+    },
+    {
+      "id": "restaurant-booking-form",
+      "type": "booking-form",
+      "name": "Table Booking Form",
+      "position": { "x": 580, "y": 120 },
+      "properties": { "conversionRate": 0.27 }
+    },
+    {
+      "id": "restaurant-email-campaign",
+      "type": "email-campaign",
+      "name": "Loyalty Email Follow-Up",
+      "position": { "x": 830, "y": 120 },
+      "properties": { "recipients": 1800, "clickThroughRate": 0.08, "cost": 140 }
+    }
+  ],
+  "connections": [
+    {
+      "id": "restaurant-conn-1",
+      "sourceId": "restaurant-google-ads",
+      "targetId": "restaurant-landing-page"
+    },
+    {
+      "id": "restaurant-conn-2",
+      "sourceId": "restaurant-landing-page",
+      "targetId": "restaurant-booking-form"
+    },
+    {
+      "id": "restaurant-conn-3",
+      "sourceId": "restaurant-booking-form",
+      "targetId": "restaurant-email-campaign"
+    }
+  ],
+  "globalParameters": {
+    "monthlyBudget": 12000,
+    "averageCheckSize": 58,
+    "customerLifetimeVisits": 6,
+    "profitMargin": 0.32
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "id": "event-promotion-funnel",
+  "name": "Event Promotion Funnel",
+  "description": "Blend social and search traffic into a focused event registration flow with follow-up reminders.",
+  "components": [
+    {
+      "id": "event-facebook-ads",
+      "type": "facebook-ads",
+      "name": "Social Event Ads",
+      "position": { "x": 80, "y": 70 },
+      "properties": { "cpc": 1.2, "budget": 2400 }
+    },
+    {
+      "id": "event-google-ads",
+      "type": "google-ads",
+      "name": "Search Intent Ads",
+      "position": { "x": 80, "y": 220 },
+      "properties": { "cpc": 1.85, "budget": 3100 }
+    },
+    {
+      "id": "event-landing-page",
+      "type": "landing-page",
+      "name": "Event Registration Page",
+      "position": { "x": 350, "y": 145 },
+      "properties": { "conversionRate": 0.21 }
+    },
+    {
+      "id": "event-booking-form",
+      "type": "booking-form",
+      "name": "Ticket Reservation Form",
+      "position": { "x": 620, "y": 145 },
+      "properties": { "conversionRate": 0.31 }
+    },
+    {
+      "id": "event-email-campaign",
+      "type": "email-campaign",
+      "name": "Reminder Email Campaign",
+      "position": { "x": 890, "y": 145 },
+      "properties": { "recipients": 2200, "clickThroughRate": 0.09, "cost": 160 }
+    }
+  ],
+  "connections": [
+    {
+      "id": "event-conn-1",
+      "sourceId": "event-facebook-ads",
+      "targetId": "event-landing-page"
+    },
+    {
+      "id": "event-conn-2",
+      "sourceId": "event-google-ads",
+      "targetId": "event-landing-page"
+    },
+    {
+      "id": "event-conn-3",
+      "sourceId": "event-landing-page",
+      "targetId": "event-booking-form"
+    },
+    {
+      "id": "event-conn-4",
+      "sourceId": "event-booking-form",
+      "targetId": "event-email-campaign"
+    }
+  ],
+  "globalParameters": {
+    "monthlyBudget": 9000,
+    "averageCheckSize": 95,
+    "customerLifetimeVisits": 1,
+    "profitMargin": 0.36
+  }
+}

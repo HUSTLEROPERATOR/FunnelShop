@@ -1,0 +1,58 @@
+{
+  "id": "email-marketing-funnel",
+  "name": "Email Marketing Funnel",
+  "description": "Capture leads, nurture them with email, and guide warm prospects into conversion.",
+  "components": [
+    {
+      "id": "email-facebook-ads",
+      "type": "facebook-ads",
+      "name": "Lead Magnet Ads",
+      "position": { "x": 90, "y": 150 },
+      "properties": { "cpc": 1.35, "budget": 2600 }
+    },
+    {
+      "id": "email-landing-page",
+      "type": "landing-page",
+      "name": "Lead Capture Page",
+      "position": { "x": 340, "y": 150 },
+      "properties": { "conversionRate": 0.24 }
+    },
+    {
+      "id": "email-campaign-sequence",
+      "type": "email-campaign",
+      "name": "Welcome Email Sequence",
+      "position": { "x": 590, "y": 150 },
+      "properties": { "recipients": 3500, "clickThroughRate": 0.11, "cost": 220 }
+    },
+    {
+      "id": "email-booking-form",
+      "type": "booking-form",
+      "name": "Consultation Booking Form",
+      "position": { "x": 840, "y": 150 },
+      "properties": { "conversionRate": 0.2 }
+    }
+  ],
+  "connections": [
+    {
+      "id": "email-conn-1",
+      "sourceId": "email-facebook-ads",
+      "targetId": "email-landing-page"
+    },
+    {
+      "id": "email-conn-2",
+      "sourceId": "email-landing-page",
+      "targetId": "email-campaign-sequence"
+    },
+    {
+      "id": "email-conn-3",
+      "sourceId": "email-campaign-sequence",
+      "targetId": "email-booking-form"
+    }
+  ],
+  "globalParameters": {
+    "monthlyBudget": 7000,
+    "averageCheckSize": 180,
+    "customerLifetimeVisits": 3,
+    "profitMargin": 0.42
+  }
+}

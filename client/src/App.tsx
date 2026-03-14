@@ -1,11 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Save, Sparkles, Link2, Trash2, HelpCircle } from 'lucide-react';
-import type { FunnelComponent, GlobalParameters, Blueprint, Connection } from './types';
+import type { FunnelComponent, GlobalParameters, Connection } from './types';
+import { blueprints, cloneBlueprint, getBlueprintById } from './blueprints';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
 import { ConfigPanel } from './components/ConfigPanel';
 import { MetricsPanel } from './components/MetricsPanel';
+import { HelpPanel } from './components/HelpPanel';
+import { AIFunnelGenerator } from './features/ai-funnel/AIFunnelGenerator';
+import type { GeneratedFunnelSuccess } from './features/ai-funnel/generateFunnelFromPrompt';
 import { calculateMetrics } from './utils/calculateMetrics';
+import { getDefaultPropertiesForType } from './utils/getDefaultPropertiesForType';
 
 const API_BASE = '/api';
 
@@ -23,10 +28,43 @@ function App() {
   });
   const [scenarioName, setScenarioName] = useState('Untitled Scenario');
   const [isSaving, setIsSaving] = useState(false);
+  const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
+  const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false);
+  const helpButtonRef = useRef<HTMLButtonElement | null>(null);
+  const helpPanelRef = useRef<HTMLDivElement | null>(null);
+  const templateButtonRef = useRef<HTMLButtonElement | null>(null);
+  const templateMenuRef = useRef<HTMLDivElement | null>(null);
 
   const metrics = calculateMetrics(components, globalParameters, connections);
 
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
+
+  const replaceCanvasState = useCallback(
+    ({
+      nextComponents,
+      nextConnections,
+      nextScenarioName,
+      nextGlobalParameters,
+    }: {
+      nextComponents: FunnelComponent[];
+      nextConnections: Connection[];
+      nextScenarioName: string;
+      nextGlobalParameters?: GlobalParameters;
+    }) => {
+      setComponents(nextComponents);
+      setConnections(nextConnections);
+      if (nextGlobalParameters) {
+        setGlobalParameters(nextGlobalParameters);
+      }
+      setScenarioName(nextScenarioName);
+      setSelectedComponentId(null);
+      setSelectedConnectionId(null);
+      setConnectionMode(false);
+      setIsTemplateMenuOpen(false);
+      setIsHelpPanelOpen(false);
+    },
+    []
+  );
 
   // Define callbacks before useEffect that uses them
   const deleteComponent = useCallback((id: string) => {
@@ -62,6 +100,12 @@ function App() {
         if (connectionMode) {
           setConnectionMode(false);
         }
+        if (isHelpPanelOpen) {
+          setIsHelpPanelOpen(false);
+        }
+        if (isTemplateMenuOpen) {
+          setIsTemplateMenuOpen(false);
+        }
         return;
       }
 
@@ -89,7 +133,40 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponentId, selectedConnectionId, connectionMode, deleteComponent, deleteConnection]);
+  }, [
+    selectedComponentId,
+    selectedConnectionId,
+    connectionMode,
+    deleteComponent,
+    deleteConnection,
+    isHelpPanelOpen,
+    isTemplateMenuOpen,
+  ]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (
+        isHelpPanelOpen &&
+        !helpPanelRef.current?.contains(target) &&
+        !helpButtonRef.current?.contains(target)
+      ) {
+        setIsHelpPanelOpen(false);
+      }
+
+      if (
+        isTemplateMenuOpen &&
+        !templateMenuRef.current?.contains(target) &&
+        !templateButtonRef.current?.contains(target)
+      ) {
+        setIsTemplateMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [isHelpPanelOpen, isTemplateMenuOpen]);
 
   const addComponent = (type: string) => {
     const newComponent: FunnelComponent = {
@@ -155,20 +232,28 @@ function App() {
     }
   };
 
-  const loadBlueprint = async (blueprintId: string) => {
-    try {
-      const response = await fetch(`${API_BASE}/blueprints`);
-      const blueprints: Blueprint[] = await response.json();
-      const blueprint = blueprints.find((b) => b.id === blueprintId);
-      if (blueprint) {
-        setComponents(blueprint.components);
-        setConnections([]); // Blueprints don't have connections yet
-        setGlobalParameters(blueprint.globalParameters);
-        setScenarioName(blueprint.name);
-      }
-    } catch (error) {
-      console.error('Failed to load blueprint:', error);
+  const loadBlueprint = (blueprintId: string) => {
+    const blueprint = getBlueprintById(blueprintId);
+
+    if (!blueprint) {
+      return;
     }
+
+    const nextBlueprint = cloneBlueprint(blueprint);
+    replaceCanvasState({
+      nextComponents: nextBlueprint.components,
+      nextConnections: nextBlueprint.connections,
+      nextScenarioName: nextBlueprint.name,
+      nextGlobalParameters: nextBlueprint.globalParameters,
+    });
+  };
+
+  const handleGenerateFunnel = (generatedFunnel: GeneratedFunnelSuccess) => {
+    replaceCanvasState({
+      nextComponents: generatedFunnel.components,
+      nextConnections: generatedFunnel.connections,
+      nextScenarioName: generatedFunnel.scenarioName,
+    });
   };
 
   return (
@@ -260,12 +345,18 @@ function App() {
 
           {/* File actions */}
           <button
-            onClick={() => loadBlueprint('restaurant-basic')}
+            ref={templateButtonRef}
+            onClick={() => {
+              setIsTemplateMenuOpen((prev) => !prev);
+              setIsHelpPanelOpen(false);
+            }}
             className="btn btn-ghost"
             style={{ height: 32 }}
+            aria-haspopup="dialog"
+            aria-expanded={isTemplateMenuOpen}
           >
             <Sparkles size={14} />
-            Blueprint
+            Load Template
           </button>
 
           <button
@@ -278,11 +369,100 @@ function App() {
             {isSaving ? 'Saving…' : 'Save'}
           </button>
 
-          <button className="btn-icon" style={{ width: 32, height: 32 }} title="Help" aria-label="Help">
+          <button
+            ref={helpButtonRef}
+            onClick={() => {
+              setIsHelpPanelOpen((prev) => !prev);
+              setIsTemplateMenuOpen(false);
+            }}
+            className="btn-icon"
+            style={{ width: 32, height: 32 }}
+            title="Help"
+            aria-label="Help"
+            aria-expanded={isHelpPanelOpen}
+          >
             <HelpCircle size={16} />
           </button>
         </div>
       </header>
+
+      {isTemplateMenuOpen && (
+        <div
+          ref={templateMenuRef}
+          role="dialog"
+          aria-label="Load a template"
+          style={{
+            position: 'fixed',
+            top: 72,
+            right: 72,
+            width: 340,
+            maxWidth: 'calc(100vw - 32px)',
+            background: 'var(--color-bg-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-float)',
+            padding: 'var(--space-4)',
+            zIndex: 'calc(var(--z-header) + 2)',
+          }}
+        >
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            <div
+              style={{
+                fontSize: 'var(--text-section-title)',
+                fontWeight: 'var(--weight-semibold)',
+                marginBottom: 4,
+              }}
+            >
+              Blueprint Library
+            </div>
+            <p className="text-helper" style={{ margin: 0 }}>
+              Start from a proven funnel layout, then customize the cards on your canvas.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+            {blueprints.map((blueprint) => (
+              <button
+                key={blueprint.id}
+                onClick={() => loadBlueprint(blueprint.id)}
+                className="btn btn-ghost"
+                style={{
+                  height: 'auto',
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  padding: 'var(--space-3)',
+                  textAlign: 'left',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                }}
+                aria-label={blueprint.name}
+              >
+                <span
+                  style={{
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--weight-semibold)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {blueprint.name}
+                </span>
+                <span className="text-helper" style={{ marginTop: 4 }}>
+                  {blueprint.description}
+                </span>
+                <span className="text-helper" style={{ marginTop: 'var(--space-2)' }}>
+                  {blueprint.components.length} steps · {blueprint.connections.length} links
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <HelpPanel ref={helpPanelRef} isOpen={isHelpPanelOpen} onClose={() => setIsHelpPanelOpen(false)} />
+
+      <div style={{ padding: 'var(--space-3) var(--space-5) 0' }}>
+        <AIFunnelGenerator onGenerateFunnel={handleGenerateFunnel} />
+      </div>
 
       {/* ─── Metrics strip ─── */}
       <div style={{ padding: 'var(--space-3) var(--space-5)' }}>
@@ -313,23 +493,6 @@ function App() {
       </div>
     </div>
   );
-}
-
-function getDefaultPropertiesForType(type: string): Record<string, number | string> {
-  switch (type) {
-    case 'google-ads':
-      return { cpc: 2.0, budget: 4000 };
-    case 'facebook-ads':
-      return { cpc: 1.5, budget: 3000 };
-    case 'landing-page':
-      return { conversionRate: 0.15 };
-    case 'booking-form':
-      return { conversionRate: 0.25 };
-    case 'email-campaign':
-      return { recipients: 1000, clickThroughRate: 0.05, cost: 100 };
-    default:
-      return {};
-  }
 }
 
 export default App;

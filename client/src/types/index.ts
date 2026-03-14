@@ -37,6 +37,7 @@ export interface Blueprint {
   name: string;
   description: string;
   components: FunnelComponent[];
+  connections: Connection[];
   globalParameters: GlobalParameters;
 }
 

@@ -33,6 +33,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   /** Tracks which card is currently being HTML5-dragged for the drag-ghost state hook */
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
 
   /** Nominal card dimensions used to centre the card under the cursor on drop */
   const CARD_WIDTH = 180;
@@ -42,6 +43,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('componentId', id);
     setDraggingId(id);
+    setHoveredComponentId(null);
   };
 
   const handleDragEnd = () => {
@@ -237,10 +239,17 @@ export const Canvas: React.FC<CanvasProps> = ({
                 className={cardClasses}
                 data-component-type={component.type}
                 data-card-state={cardState}
+                data-component-id={component.id}
                 draggable={!connectionMode}
                 onDragStart={(e) => handleDragStart(e, component.id)}
                 onDragEnd={handleDragEnd}
                 onClick={(e) => handleComponentClick(e, component.id)}
+                onMouseEnter={() => setHoveredComponentId(component.id)}
+                onMouseLeave={() => {
+                  setHoveredComponentId((current) =>
+                    current === component.id ? null : current
+                  );
+                }}
                 style={cardStyle(component)}
               >
                 {/* Connection input handle anchor — non-functional Figma mapping hook */}
@@ -321,6 +330,31 @@ export const Canvas: React.FC<CanvasProps> = ({
                     {config.label}
                   </div>
                 </div>
+
+                {hoveredComponentId === component.id && config.helperText && !isDraggingThis && (
+                  <div
+                    role="tooltip"
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: -14,
+                      transform: 'translate(-50%, -100%)',
+                      maxWidth: 220,
+                      padding: 'var(--space-2) var(--space-3)',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(17, 24, 39, 0.94)',
+                      color: '#fff',
+                      fontSize: 'var(--text-helper)',
+                      lineHeight: 'var(--leading-normal)',
+                      boxShadow: 'var(--shadow-md)',
+                      pointerEvents: 'none',
+                      textAlign: 'center',
+                      zIndex: 'var(--z-overlay)' as unknown as number,
+                    }}
+                  >
+                    {config.helperText}
+                  </div>
+                )}
 
                 {/* Connection output handle anchor — non-functional Figma mapping hook */}
                 <div
