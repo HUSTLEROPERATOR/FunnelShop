@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { Target, Facebook, FileText, ClipboardList, Mail } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import type { FunnelComponent, Connection } from '../types';
 import { ConnectionLine } from './ConnectionLine';
+import {
+  COMPONENT_TYPE_CONFIG,
+  FALLBACK_COMPONENT_TYPE_CONFIG,
+} from '../config/componentTypeConfig';
 
 interface CanvasProps {
   components: FunnelComponent[];
@@ -15,50 +19,6 @@ interface CanvasProps {
   onCreateConnection: (sourceId: string, targetId: string) => void;
 }
 
-/* Per-type config: icon, accent color, bg tint, label */
-const typeConfig: Record<
-  string,
-  { icon: React.ElementType; color: string; bg: string; label: string }
-> = {
-  'google-ads': {
-    icon: Target,
-    color: 'var(--color-type-google)',
-    bg: 'var(--color-type-google-bg)',
-    label: 'Google Ads',
-  },
-  'facebook-ads': {
-    icon: Facebook,
-    color: 'var(--color-type-facebook)',
-    bg: 'var(--color-type-facebook-bg)',
-    label: 'Facebook Ads',
-  },
-  'landing-page': {
-    icon: FileText,
-    color: 'var(--color-type-landing)',
-    bg: 'var(--color-type-landing-bg)',
-    label: 'Landing Page',
-  },
-  'booking-form': {
-    icon: ClipboardList,
-    color: 'var(--color-type-booking)',
-    bg: 'var(--color-type-booking-bg)',
-    label: 'Booking Form',
-  },
-  'email-campaign': {
-    icon: Mail,
-    color: 'var(--color-type-email)',
-    bg: 'var(--color-type-email-bg)',
-    label: 'Email Campaign',
-  },
-};
-
-const fallbackConfig = {
-  icon: FileText,
-  color: 'var(--color-text-secondary)',
-  bg: 'var(--color-bg-control)',
-  label: 'Component',
-};
-
 export const Canvas: React.FC<CanvasProps> = ({
   components,
   connections,
@@ -71,10 +31,17 @@ export const Canvas: React.FC<CanvasProps> = ({
   onCreateConnection,
 }) => {
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  /** Tracks which card is currently being HTML5-dragged for the drag-ghost state hook */
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('componentId', id);
+    setDraggingId(id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -158,6 +125,16 @@ export const Canvas: React.FC<CanvasProps> = ({
     };
   };
 
+  /* ── Shared base style for connection handle anchor divs ── */
+  const handleAnchorStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: 10,
+    height: 10,
+    pointerEvents: 'none',
+  };
+
   return (
     <div
       className="flex-1 relative overflow-auto"
@@ -217,17 +194,59 @@ export const Canvas: React.FC<CanvasProps> = ({
         {/* Components layer */}
         <div className="relative" style={{ zIndex: 'var(--z-components)' as unknown as number }}>
           {components.map((component) => {
-            const config = typeConfig[component.type] || fallbackConfig;
+            const config = COMPONENT_TYPE_CONFIG[component.type] ?? FALLBACK_COMPONENT_TYPE_CONFIG;
             const Icon = config.icon;
+
+            /* ── Derived state flags ── */
+            const isSelected = selectedId === component.id;
+            const isConnecting = connectionMode && connectingFrom === component.id;
+            const isConnectTarget =
+              connectionMode && connectingFrom !== null && connectingFrom !== component.id;
+            const isDraggingThis = draggingId === component.id;
+
+            /* ── Figma-ready state hook: single canonical state name ── */
+            type CardState = 'rest' | 'selected' | 'connecting-source' | 'connecting-target' | 'dragging';
+            const resolveCardState = (): CardState => {
+              if (isConnecting) return 'connecting-source';
+              if (isSelected) return 'selected';
+              if (isConnectTarget) return 'connecting-target';
+              if (isDraggingThis) return 'dragging';
+              return 'rest';
+            };
+            const cardState = resolveCardState();
+
+            /* ── BEM-style class hooks for Figma → CSS mapping ── */
+            const cardClasses = [
+              'canvas-card',
+              `canvas-card--type-${component.type}`,
+              isSelected ? 'canvas-card--selected' : '',
+              isConnecting ? 'canvas-card--connecting-source' : '',
+              isConnectTarget ? 'canvas-card--connecting-target' : '',
+              isDraggingThis ? 'canvas-card--dragging' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
 
             return (
               <div
                 key={component.id}
+                className={cardClasses}
+                data-component-type={component.type}
+                data-card-state={cardState}
                 draggable={!connectionMode}
                 onDragStart={(e) => handleDragStart(e, component.id)}
+                onDragEnd={handleDragEnd}
                 onClick={(e) => handleComponentClick(e, component.id)}
                 style={cardStyle(component)}
               >
+                {/* Connection input handle anchor — non-functional Figma mapping hook */}
+                <div
+                  className="canvas-card__handle canvas-card__handle--input"
+                  data-handle="input"
+                  aria-hidden="true"
+                  style={{ ...handleAnchorStyle, left: -5 }}
+                />
+
                 {/* Colored top strip */}
                 <div
                   style={{
@@ -298,6 +317,14 @@ export const Canvas: React.FC<CanvasProps> = ({
                     {config.label}
                   </div>
                 </div>
+
+                {/* Connection output handle anchor — non-functional Figma mapping hook */}
+                <div
+                  className="canvas-card__handle canvas-card__handle--output"
+                  data-handle="output"
+                  aria-hidden="true"
+                  style={{ ...handleAnchorStyle, right: -5 }}
+                />
               </div>
             );
           })}

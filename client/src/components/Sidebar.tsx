@@ -1,58 +1,26 @@
 import React from 'react';
-import { Layers, Target, Facebook, FileText, ClipboardList, Mail } from 'lucide-react';
+import { Layers } from 'lucide-react';
+import {
+  COMPONENT_TYPE_CONFIG,
+  COMPONENT_TYPE_KEYS,
+} from '../config/componentTypeConfig';
 
 interface SidebarProps {
   onAddComponent: (type: string) => void;
 }
 
-const componentTypes = [
-  {
-    type: 'google-ads',
-    name: 'Google Ads',
-    icon: Target,
-    color: 'var(--color-type-google)',
-    bg: 'var(--color-type-google-bg)',
-    group: 'Traffic',
-  },
-  {
-    type: 'facebook-ads',
-    name: 'Facebook Ads',
-    icon: Facebook,
-    color: 'var(--color-type-facebook)',
-    bg: 'var(--color-type-facebook-bg)',
-    group: 'Traffic',
-  },
-  {
-    type: 'landing-page',
-    name: 'Landing Page',
-    icon: FileText,
-    color: 'var(--color-type-landing)',
-    bg: 'var(--color-type-landing-bg)',
-    group: 'Conversion',
-  },
-  {
-    type: 'booking-form',
-    name: 'Booking Form',
-    icon: ClipboardList,
-    color: 'var(--color-type-booking)',
-    bg: 'var(--color-type-booking-bg)',
-    group: 'Conversion',
-  },
-  {
-    type: 'email-campaign',
-    name: 'Email Campaign',
-    icon: Mail,
-    color: 'var(--color-type-email)',
-    bg: 'var(--color-type-email-bg)',
-    group: 'Nurture',
-  },
-];
+/* Build a list of sidebar entries from the shared config */
+const componentTypeList = COMPONENT_TYPE_KEYS.map((key) => ({
+  type: key,
+  ...COMPONENT_TYPE_CONFIG[key],
+}));
 
-/* Group items by their category */
-const groups: Record<string, typeof componentTypes> = {};
-for (const ct of componentTypes) {
-  if (!groups[ct.group]) groups[ct.group] = [];
-  groups[ct.group].push(ct);
+/* Group entries by category */
+const groups: Record<string, typeof componentTypeList> = {};
+for (const ct of componentTypeList) {
+  const cat = ct.category;
+  if (!groups[cat]) groups[cat] = [];
+  groups[cat].push(ct);
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onAddComponent }) => {
@@ -109,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddComponent }) => {
                 <button
                   key={component.type}
                   onClick={() => onAddComponent(component.type)}
-                  aria-label={`Add ${component.name}`}
+                  aria-label={`Add ${component.label}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -150,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddComponent }) => {
                   >
                     <Icon size={15} style={{ color: component.color }} />
                   </div>
-                  <span>{component.name}</span>
+                  <span>{component.label}</span>
                 </button>
               );
             })}
