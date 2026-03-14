@@ -34,6 +34,10 @@ export const Canvas: React.FC<CanvasProps> = ({
   /** Tracks which card is currently being HTML5-dragged for the drag-ghost state hook */
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  /** Nominal card dimensions used to centre the card under the cursor on drop */
+  const CARD_WIDTH = 180;
+  const CARD_HEIGHT = 88; // 3px strip + top/bottom padding + icon-row + badge row
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('componentId', id);
@@ -49,8 +53,8 @@ export const Canvas: React.FC<CanvasProps> = ({
     const componentId = e.dataTransfer.getData('componentId');
     if (componentId) {
       const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left - 85; // half of 170px card width
-      const y = e.clientY - rect.top - 44;  // half of ~88px card height
+      const x = e.clientX - rect.left - CARD_WIDTH / 2;
+      const y = e.clientY - rect.top - CARD_HEIGHT / 2;
       onMoveComponent(componentId, x, y);
     }
   };
