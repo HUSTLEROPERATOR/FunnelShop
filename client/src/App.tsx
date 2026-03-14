@@ -181,44 +181,60 @@ function App() {
         className="sticky top-0 z-50 flex items-center justify-between"
         style={{
           height: 56,
-          padding: '0 var(--space-6)',
+          padding: '0 var(--space-5)',
           background: 'var(--color-bg-surface)',
           borderBottom: '1px solid var(--color-border)',
+          boxShadow: '0 1px 0 var(--color-border-muted)',
         }}
       >
-        {/* Left: title + scenario name */}
-        <div className="flex items-center" style={{ gap: 'var(--space-4)' }}>
-          <h1 className="text-page-title" style={{ margin: 0 }}>
-            Funnel Builder
-          </h1>
+        {/* Left: wordmark + scenario name */}
+        <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+          {/* Wordmark / logo */}
+          <div className="flex items-center" style={{ gap: 'var(--space-2)', flexShrink: 0 }}>
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Sparkles size={14} style={{ color: '#fff' }} />
+            </div>
+            <h1 className="text-page-title" style={{ margin: 0 }}>
+              FunnelShop
+            </h1>
+          </div>
 
-          <div
-            style={{
-              width: 1,
-              height: 24,
-              background: 'var(--color-border)',
-            }}
-          />
+          <div style={{ width: 1, height: 20, background: 'var(--color-border)', flexShrink: 0 }} />
 
+          {/* Scenario name */}
           <input
             type="text"
             value={scenarioName}
             onChange={(e) => setScenarioName(e.target.value)}
             className="control-input"
-            style={{ width: 220 }}
+            style={{ width: 200, height: 32, fontSize: 'var(--text-label)' }}
+            aria-label="Scenario name"
           />
         </div>
 
-        {/* Right: action buttons */}
-        <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
+        {/* Right: action buttons — grouped by purpose */}
+        <div className="flex items-center" style={{ gap: 'var(--space-1)' }}>
+          {/* Canvas mode controls */}
           <button
             onClick={() => {
               setConnectionMode(!connectionMode);
               setSelectedConnectionId(null);
             }}
             className={`btn ${connectionMode ? 'btn-success' : 'btn-ghost'}`}
+            style={{ height: 32 }}
+            aria-pressed={connectionMode}
           >
-            <Link2 size={16} />
+            <Link2 size={14} />
             {connectionMode ? 'Exit Connect' : 'Connect'}
           </button>
 
@@ -232,17 +248,23 @@ function App() {
                 }
               }}
               className="btn btn-danger"
+              style={{ height: 32 }}
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
               Delete
             </button>
           )}
 
+          {/* Divider */}
+          <div style={{ width: 1, height: 20, background: 'var(--color-border)', margin: '0 var(--space-1)' }} />
+
+          {/* File actions */}
           <button
             onClick={() => loadBlueprint('restaurant-basic')}
             className="btn btn-ghost"
+            style={{ height: 32 }}
           >
-            <Sparkles size={16} />
+            <Sparkles size={14} />
             Blueprint
           </button>
 
@@ -250,19 +272,20 @@ function App() {
             onClick={saveScenario}
             disabled={isSaving}
             className="btn btn-primary"
+            style={{ height: 32 }}
           >
-            <Save size={16} />
-            {isSaving ? 'Saving...' : 'Save'}
+            <Save size={14} />
+            {isSaving ? 'Saving…' : 'Save'}
           </button>
 
-          <button className="btn-icon" title="Help">
-            <HelpCircle size={18} />
+          <button className="btn-icon" style={{ width: 32, height: 32 }} title="Help" aria-label="Help">
+            <HelpCircle size={16} />
           </button>
         </div>
       </header>
 
       {/* ─── Metrics strip ─── */}
-      <div style={{ padding: 'var(--space-4) var(--space-6)' }}>
+      <div style={{ padding: 'var(--space-3) var(--space-5)' }}>
         <MetricsPanel metrics={metrics} />
       </div>
 

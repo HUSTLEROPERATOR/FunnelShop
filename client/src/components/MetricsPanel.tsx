@@ -1,65 +1,146 @@
 import React from 'react';
-import { TrendingUp, Users, DollarSign, Target } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Target, Star, BarChart2 } from 'lucide-react';
 import type { SimulationMetrics } from '../types';
 
 interface MetricsPanelProps {
   metrics: SimulationMetrics;
 }
 
+const metricConfig = [
+  {
+    key: 'visitors' as const,
+    label: 'Visitors',
+    icon: Users,
+    color: 'var(--color-metric-blue)',
+    bg: 'var(--color-metric-blue-bg)',
+    format: (v: number) => v.toLocaleString(),
+  },
+  {
+    key: 'bookings' as const,
+    label: 'Bookings',
+    icon: Target,
+    color: 'var(--color-metric-green)',
+    bg: 'var(--color-metric-green-bg)',
+    format: (v: number) => v.toLocaleString(),
+  },
+  {
+    key: 'revenue' as const,
+    label: 'Revenue',
+    icon: DollarSign,
+    color: 'var(--color-metric-yellow)',
+    bg: 'var(--color-metric-yellow-bg)',
+    format: (v: number) => `$${v.toLocaleString()}`,
+  },
+  {
+    key: 'profit' as const,
+    label: 'Profit',
+    icon: TrendingUp,
+    color: 'var(--color-metric-purple)',
+    bg: 'var(--color-metric-purple-bg)',
+    format: (v: number) => `$${v.toLocaleString()}`,
+  },
+  {
+    key: 'roi' as const,
+    label: 'ROI',
+    icon: BarChart2,
+    color: 'var(--color-metric-pink)',
+    bg: 'var(--color-metric-pink-bg)',
+    format: (v: number) => `${v}%`,
+  },
+  {
+    key: 'loyalCustomers' as const,
+    label: 'Loyal Customers',
+    icon: Star,
+    color: 'var(--color-metric-indigo)',
+    bg: 'var(--color-metric-indigo-bg)',
+    format: (v: number) => v.toLocaleString(),
+  },
+];
+
 export const MetricsPanel: React.FC<MetricsPanelProps> = ({ metrics }) => {
-  const metricItems = [
-    { label: 'Visitors', value: metrics.visitors.toLocaleString(), icon: Users, color: 'var(--color-metric-blue)', bg: 'var(--color-metric-blue-bg)' },
-    { label: 'Bookings', value: metrics.bookings.toLocaleString(), icon: Target, color: 'var(--color-metric-green)', bg: 'var(--color-metric-green-bg)' },
-    { label: 'Revenue', value: `$${metrics.revenue.toLocaleString()}`, icon: DollarSign, color: 'var(--color-metric-yellow)', bg: 'var(--color-metric-yellow-bg)' },
-    { label: 'Profit', value: `$${metrics.profit.toLocaleString()}`, icon: TrendingUp, color: 'var(--color-metric-purple)', bg: 'var(--color-metric-purple-bg)' },
-    { label: 'ROI', value: `${metrics.roi}%`, icon: TrendingUp, color: 'var(--color-metric-pink)', bg: 'var(--color-metric-pink-bg)' },
-    { label: 'Loyal Customers', value: metrics.loyalCustomers.toLocaleString(), icon: Users, color: 'var(--color-metric-indigo)', bg: 'var(--color-metric-indigo-bg)' },
-  ];
+  const allZero = metricConfig.every((m) => metrics[m.key] === 0);
 
   return (
     <div
-      className="surface-raised"
-      style={{ padding: 'var(--space-5)' }}
+      style={{
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-sm)',
+        padding: 'var(--space-4) var(--space-5)',
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: 0,
+      }}
     >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(6, 1fr)',
-          gap: 'var(--space-3)',
-        }}
-      >
-        {metricItems.map((item) => {
-          const Icon = item.icon;
-          return (
+      {metricConfig.map((item, index) => {
+        const Icon = item.icon;
+        const value = metrics[item.key];
+        const isEmpty = allZero;
+
+        return (
+          <React.Fragment key={item.label}>
+            {/* Metric cell */}
             <div
-              key={item.label}
               style={{
-                padding: 'var(--space-4)',
-                borderRadius: 'var(--radius-md)',
-                background: item.bg,
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-1)',
+                padding: '0 var(--space-4)',
               }}
             >
+              {/* Label row */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 'var(--space-2)',
-                  marginBottom: 'var(--space-2)',
+                  gap: 'var(--space-1)',
                 }}
               >
-                <Icon size={14} style={{ color: item.color, opacity: 0.7 }} />
+                <div
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 4,
+                    background: item.bg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon size={10} style={{ color: item.color }} />
+                </div>
                 <span className="text-metric-label">{item.label}</span>
               </div>
+
+              {/* Value */}
               <div
                 className="text-metric-value"
-                style={{ color: item.color }}
+                style={{
+                  color: isEmpty ? 'var(--color-text-tertiary)' : item.color,
+                  transition: 'color 200ms ease',
+                }}
               >
-                {item.value}
+                {isEmpty ? '—' : item.format(value)}
               </div>
             </div>
-          );
-        })}
-      </div>
+
+            {/* Vertical divider between cells */}
+            {index < metricConfig.length - 1 && (
+              <div
+                style={{
+                  width: 1,
+                  background: 'var(--color-border-muted)',
+                  alignSelf: 'stretch',
+                  flexShrink: 0,
+                }}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 };
